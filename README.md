@@ -39,6 +39,8 @@ paste your mail and App pass
 9. Copy the password and use it as your `SMTP_PASS` in your `.env` file (remove the spaces if necessary).
 
 
+also fill your mongodb uri
+
 
 
 
