@@ -12,19 +12,19 @@ const Card = ({
   const baseStyle = 'rounded-xl border p-5 transition-all duration-300';
   
   const variants = {
-    default: 'bg-white border-slate-200 dark:bg-darkSurface dark:border-slate-800 shadow-xs',
+    default: 'bg-white border-slate-200 dark:bg-[#0d112b]/60 dark:border-slate-800/40 dark:backdrop-blur-xl shadow-xs',
     glass: 'glass-card',
-    gradient: 'bg-gradient-to-tr from-white to-slate-50 border-slate-200 dark:from-darkSurface dark:to-darkElevated dark:border-slate-800 shadow-sm'
+    gradient: 'bg-gradient-to-tr from-white to-slate-50 border-slate-200 dark:from-[#1b1437]/45 dark:to-[#2d1b69]/20 dark:border-slate-800/40 dark:backdrop-blur-xl shadow-sm'
   };
 
   const hoverEffect = hoverLift && !onClick
-    ? { whileHover: { y: -4, boxShadow: '0 10px 25px rgba(0,0,0,0.08)' } }
+    ? { whileHover: { y: -5, scale: 1.01, boxShadow: '0 12px 30px rgba(0, 240, 255, 0.15)' } }
     : {};
 
   const clickEffect = onClick
     ? {
-        whileHover: { y: -3, scale: 1.01, boxShadow: '0 8px 20px rgba(0,0,0,0.06)' },
-        whileTap: { scale: 0.99 },
+        whileHover: { y: -4, scale: 1.02, boxShadow: '0 12px 25px rgba(0, 240, 255, 0.18)' },
+        whileTap: { scale: 0.98 },
         className: `${baseStyle} ${variants[variant]} cursor-pointer ${className}`
       }
     : { className: `${baseStyle} ${variants[variant]} ${className}` };

@@ -16,11 +16,13 @@ export default {
           emerald: '#10B981',
           amber: '#F59E0B',
           red: '#EF4444',
+          neonCyan: '#00f0ff',
+          neonPurple: '#8b5cf6',
         },
         // Dark theme mappings
-        darkBg: '#0F172A',
-        darkSurface: '#1E293B',
-        darkElevated: '#334155',
+        darkBg: '#0a0e27',
+        darkSurface: '#0d112b',
+        darkElevated: '#1b1437',
         darkText: '#F1F5F9',
         darkMuted: '#94A3B8'
       },

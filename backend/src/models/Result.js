@@ -11,6 +11,11 @@ const resultSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true
+  },
   response: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ExamResponse',
@@ -61,10 +66,26 @@ const resultSchema = new mongoose.Schema({
       timeSpent: Number,
       status: String
     }
-  ]
+  ],
+  status: {
+    type: String,
+    enum: ['Pending', 'Published', 'Rejected'],
+    default: 'Pending',
+    required: true
+  },
+  reviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reviewedAt: Date,
+  publishedAt: Date
 }, {
   timestamps: true
 });
+
+resultSchema.index({ exam: 1 });
+resultSchema.index({ student: 1 });
+resultSchema.index({ organizationId: 1 });
 
 const Result = mongoose.model('Result', resultSchema);
 export default Result;

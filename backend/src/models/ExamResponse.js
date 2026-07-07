@@ -12,6 +12,11 @@ const examResponseSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true
+  },
   answers: [
     {
       question: { type: mongoose.Schema.Types.ObjectId, ref: 'Question', required: true },
@@ -73,6 +78,7 @@ const examResponseSchema = new mongoose.Schema({
 
 // Ensure a student can only submit one response per exam (compound unique index)
 examResponseSchema.index({ exam: 1, student: 1 }, { unique: true });
+examResponseSchema.index({ organizationId: 1 });
 
 const ExamResponse = mongoose.model('ExamResponse', examResponseSchema);
 export default ExamResponse;

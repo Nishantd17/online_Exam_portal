@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Shield, Zap, BarChart3, Link, Lock, Settings, ChevronDown, CheckCircle2, GraduationCap, Copy, Search, HelpCircle, Phone, Mail, MapPin } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Accordion from '../../components/ui/Accordion';
+import BlobBackground from '../../components/effects/BlobBackground';
 import toast from 'react-hot-toast';
+
+const ParticleBackground = lazy(() => import('../../components/effects/ParticleBackground'));
 
 const Landing = () => {
   // FAQs Search state
@@ -62,10 +65,16 @@ const Landing = () => {
   );
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden bg-slate-50 dark:bg-darkBg transition-colors duration-300">
-      {/* Decorative Blur Orbs */}
-      <div className="absolute top-20 -left-40 h-96 w-96 rounded-full bg-brand-blue/10 dark:bg-brand-blue/5 blur-[120px] pointer-events-none" />
-      <div className="absolute top-[40%] -right-40 h-[450px] w-[450px] rounded-full bg-brand-violet/10 dark:bg-brand-violet/5 blur-[120px] pointer-events-none" />
+    <div className="min-h-screen relative overflow-x-hidden bg-slate-50 dark:bg-[#050814] transition-colors duration-300">
+      {/* Layer 1: Animated Blob Morphing Background */}
+      <BlobBackground />
+
+      {/* Layer 2: Particle Neural Network (hero only) */}
+      <div className="absolute inset-0 h-screen pointer-events-none">
+        <Suspense fallback={null}>
+          <ParticleBackground />
+        </Suspense>
+      </div>
 
       <Navbar />
 

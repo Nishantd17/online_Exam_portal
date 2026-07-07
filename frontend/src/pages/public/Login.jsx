@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, GraduationCap, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, GraduationCap, ArrowRight, Zap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import BlobBackground from '../../components/effects/BlobBackground';
 import toast from 'react-hot-toast';
+
+const ParticleBackground = lazy(() => import('../../components/effects/ParticleBackground'));
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -47,102 +50,169 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-darkBg transition-colors duration-300 p-4 md:p-8">
-      {/* Central Login Card Split */}
-      <div className="w-full max-w-5xl h-[600px] grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden border border-slate-200/60 dark:border-slate-800 shadow-2xl bg-white dark:bg-darkSurface">
-        {/* Left Side: Brand Panel */}
-        <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-tr from-brand-blue via-brand-blueDark to-brand-violet flex-col justify-between p-12 text-white relative overflow-hidden">
-          {/* Geometric floating vector overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(#ffffff0c_1px,transparent_1px)] [background-size:20px_20px]" />
-          <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
-          <div className="absolute -bottom-20 -right-20 h-60 w-60 rounded-full bg-white/5 blur-3xl" />
+    <div className="min-h-screen w-screen flex items-center justify-center bg-[#050814] transition-colors duration-300 p-4 md:p-8 relative overflow-hidden">
 
-          <Link to="/" className="flex items-center gap-2 relative z-10 self-start">
-            <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center">
-              <GraduationCap size={20} />
-            </div>
-            <span className="font-bold text-lg tracking-tight">ExamPortal</span>
-          </Link>
+      {/* Layer 1: Blob Morphing Background */}
+      <BlobBackground />
 
-          <div className="space-y-4 relative z-10">
-            <h2 className="text-3xl font-extrabold leading-tight">Welcome back.</h2>
-            <p className="text-sm text-slate-100/80 leading-relaxed">
-              Integrate. Proctor. Analyze. Secure exams optimized for web runtime sandboxes.
-            </p>
-          </div>
+      {/* Layer 2: Neural Particle Network */}
+      <Suspense fallback={null}>
+        <ParticleBackground />
+      </Suspense>
 
-          <div className="text-[10px] text-slate-200/50 relative z-10 font-mono">
-            SECURED END-TO-END VIA JWT & SHA-256
-          </div>
-        </div>
-
-        {/* Right Side: Form */}
-        <motion.div
-          animate={shake ? { x: [-10, 10, -10, 10, -5, 5, 0] } : {}}
-          transition={{ duration: 0.4 }}
-          className="lg:col-span-7 flex flex-col justify-center px-6 py-10 md:px-16"
+      {/* Layer 3: Login Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.7, type: 'spring', stiffness: 100 }}
+        className="relative z-10 w-full max-w-5xl"
+      >
+        <div
+          className="h-[620px] grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden antigravity-float"
+          style={{
+            background: 'rgba(5,8,20,0.7)',
+            backdropFilter: 'blur(30px)',
+            border: '1px solid rgba(0,240,255,0.2)',
+            boxShadow: '0 0 60px rgba(0,240,255,0.12), 0 0 120px rgba(139,92,246,0.08), inset 0 0 40px rgba(0,0,0,0.4)',
+          }}
         >
-          <div className="space-y-2 mb-8">
-            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Sign In</h1>
-            <p className="text-sm text-slate-400 dark:text-darkMuted">Enter credentials to unlock dashboard portals.</p>
-          </div>
+          {/* Holographic shimmer overlay */}
+          <div className="absolute inset-0 holographic rounded-3xl pointer-events-none z-0 opacity-50" />
 
-          <form onSubmit={handleLoginSubmit} className="space-y-5">
-            <Input
-              label="Email Address"
-              id="email"
-              type="email"
-              placeholder="e.g. name@institution.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={<Mail size={16} />}
-              required
-            />
+          {/* Left Side: Brand Panel */}
+          <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-12 text-white relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(139,92,246,0.12) 50%, rgba(236,72,153,0.06) 100%)',
+              borderRight: '1px solid rgba(0,240,255,0.15)',
+            }}
+          >
+            {/* Corner HUD decorations */}
+            <div className="hud-corner hud-corner-tl" style={{ borderColor: 'rgba(0,240,255,0.6)', width: 24, height: 24 }} />
+            <div className="hud-corner hud-corner-br" style={{ borderColor: 'rgba(0,240,255,0.6)', width: 24, height: 24 }} />
 
-            <div className="relative">
-              <Input
-                label="Password"
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                icon={<Lock size={16} />}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-8.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+            {/* Dot grid */}
+            <div className="absolute inset-0 bg-[radial-gradient(rgba(0,240,255,0.08)_1px,transparent_1px)] [background-size:22px_22px] pointer-events-none" />
 
-            <div className="flex items-center justify-between text-xs font-semibold">
-              <label className="flex items-center gap-2 text-slate-500 dark:text-darkMuted cursor-pointer select-none">
-                <input type="checkbox" className="rounded border-slate-300 dark:border-slate-800 text-brand-blue focus:ring-brand-blue" />
-                Remember me
-              </label>
-              <Link to="/forgot-password" className="text-brand-blue hover:text-brand-blueDark transition-colors">
-                Forgot password?
-              </Link>
-            </div>
+            {/* Glowing orbs on brand panel */}
+            <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full blur-3xl" style={{ background: 'rgba(0,240,255,0.12)' }} />
+            <div className="absolute -bottom-20 -right-10 h-60 w-60 rounded-full blur-3xl" style={{ background: 'rgba(139,92,246,0.12)' }} />
 
-            <Button type="submit" loading={loading} className="w-full mt-2">
-              Sign In
-            </Button>
-          </form>
-
-          {/* Registration link */}
-          <div className="mt-8 text-center text-xs text-slate-400 dark:text-darkMuted">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-brand-blue font-bold hover:underline inline-flex items-center gap-0.5 group">
-              Create account <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+            <Link to="/" className="flex items-center gap-2 relative z-10 self-start">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.3)', boxShadow: '0 0 15px rgba(0,240,255,0.2)' }}>
+                <GraduationCap size={20} style={{ color: '#00f0ff' }} />
+              </div>
+              <span className="font-bold text-lg tracking-tight neon-cyan">ExamPortal</span>
             </Link>
+
+            <div className="space-y-5 relative z-10">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3, duration: 0.7 }}
+              >
+                <h2 className="text-3xl font-extrabold leading-tight text-white mb-3">Welcome back.</h2>
+                <p className="text-sm text-slate-300/80 leading-relaxed">
+                  Secure, intelligent exam management. Proctor. Analyze. Excel.
+                </p>
+              </motion.div>
+              <div className="flex flex-col gap-2">
+                {['AI-powered proctoring', 'Real-time analytics', 'Multi-tenant security'].map((feat, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 + i * 0.1 }}
+                    className="flex items-center gap-2 text-xs text-slate-300"
+                  >
+                    <Zap size={11} style={{ color: '#00f0ff' }} />
+                    {feat}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-[9px] text-slate-500 relative z-10 font-mono tracking-widest">
+              ▶ SECURED • JWT • SHA-256 • TLS 1.3
+            </div>
           </div>
-        </motion.div>
-      </div>
+
+          {/* Right Side: Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={shake ? { x: [-10, 10, -10, 10, -5, 5, 0], opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="lg:col-span-7 flex flex-col justify-center px-6 py-10 md:px-16 relative z-10"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-2 mb-8"
+            >
+              <h1 className="text-2xl font-extrabold text-white">Sign In</h1>
+              <p className="text-sm text-slate-400">Enter credentials to unlock your portal.</p>
+            </motion.div>
+
+            <form onSubmit={handleLoginSubmit} className="space-y-5">
+              <motion.div initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}>
+                <Input
+                  label="Email Address"
+                  id="email"
+                  type="email"
+                  placeholder="e.g. name@institution.edu"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  icon={<Mail size={16} />}
+                  required
+                />
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.32 }} className="relative">
+                <Input
+                  label="Password"
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  icon={<Lock size={16} />}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-8.5 text-slate-400 hover:text-slate-200"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38 }} className="flex items-center justify-between text-xs font-semibold">
+                <label className="flex items-center gap-2 text-slate-500 cursor-pointer select-none">
+                  <input type="checkbox" className="rounded border-slate-700 text-cyan-500 focus:ring-cyan-500" />
+                  Remember me
+                </label>
+                <Link to="/forgot-password" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+                  Forgot password?
+                </Link>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.44 }}>
+                <Button type="submit" loading={loading} className="w-full mt-2">
+                  Sign In
+                </Button>
+              </motion.div>
+            </form>
+
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-8 text-center text-xs text-slate-500">
+              Don't have an account?{' '}
+              <Link to="/signup" className="text-cyan-400 font-bold hover:underline inline-flex items-center gap-0.5 group">
+                Create account <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </motion.div>
+          </motion.div>
+        </div>
+      </motion.div>
     </div>
   );
 };

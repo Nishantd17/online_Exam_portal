@@ -13,7 +13,7 @@ export const verifyJWT = async (req, res, next) => {
 
     try {
       const decoded = verifyAccessToken(token);
-      const user = await User.findById(decoded._id).select('-password');
+      const user = await User.findById(decoded._id).select('-password').populate('organizationId');
 
       if (!user) {
         throw new ApiError(401, 'Invalid Access Token. User not found.');

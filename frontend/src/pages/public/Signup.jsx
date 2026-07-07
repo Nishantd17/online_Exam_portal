@@ -19,6 +19,7 @@ const Signup = () => {
   const [role, setRole] = useState('student'); // student, admin
   const [organization, setOrganization] = useState('');
   const [phone, setPhone] = useState('');
+  const [joinCode, setJoinCode] = useState('');
 
   // Password strength states
   const [strength, setStrength] = useState(0); // 0 to 4
@@ -62,8 +63,11 @@ const Signup = () => {
       }
       setStep(2);
     } else if (step === 2) {
-      if (!organization) {
+      if (role === 'admin' && !organization) {
         return toast.error('Please enter your Institution/Organization name.');
+      }
+      if (role === 'student' && !joinCode) {
+        return toast.error('Please enter your Organization Join Code.');
       }
       setLoading(true);
       try {
@@ -110,7 +114,7 @@ const Signup = () => {
       await verifyOtp(email, enteredOtp);
 
       // Signup operation
-      await signup({ fullName, email, password, role, organization, phone });
+      await signup({ fullName, email, password, role, organization, phone, joinCode });
       
       // Auto login
       await login(email, password);
@@ -282,7 +286,7 @@ const Signup = () => {
                     <div className="h-8 w-8 rounded-full bg-brand-blue/10 flex items-center justify-center text-brand-blue">
                       🎓
                     </div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-darkText">Student Portal</span>
+                    <span className="text-xs font-bold text-slate-850 dark:text-darkText text-center leading-tight">Student Portal</span>
                   </div>
                   <div
                     onClick={() => setRole('admin')}
@@ -295,20 +299,32 @@ const Signup = () => {
                     <div className="h-8 w-8 rounded-full bg-brand-violet/10 flex items-center justify-center text-brand-violet">
                       🛡️
                     </div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-darkText">Administrator</span>
+                    <span className="text-xs font-bold text-slate-850 dark:text-darkText text-center leading-tight">Administrator</span>
                   </div>
                 </div>
               </div>
 
-              <Input
-                label="Institution / Organization"
-                id="organization"
-                placeholder="e.g. Stanford University"
-                value={organization}
-                onChange={(e) => setOrganization(e.target.value)}
-                icon={<Briefcase size={16} />}
-                required
-              />
+              {role === 'admin' ? (
+                <Input
+                  label="Institution / Organization Name"
+                  id="organization"
+                  placeholder="e.g. Stanford University"
+                  value={organization}
+                  onChange={(e) => setOrganization(e.target.value)}
+                  icon={<Briefcase size={16} />}
+                  required
+                />
+              ) : (
+                <Input
+                  label="Organization Join Code"
+                  id="joinCode"
+                  placeholder="e.g. ABC483XZ"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  icon={<Lock size={16} />}
+                  required
+                />
+              )}
 
               <Input
                 label="Phone Number (Optional)"

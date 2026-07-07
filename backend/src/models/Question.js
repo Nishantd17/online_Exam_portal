@@ -80,6 +80,11 @@ const questionSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -101,6 +106,7 @@ const questionSchema = new mongoose.Schema({
 questionSchema.index({ type: 1, difficulty: 1, category: 1 });
 questionSchema.index({ topics: 1 });
 questionSchema.index({ text: 'text' }); // full-text search index
+questionSchema.index({ organizationId: 1 });
 
 const Question = mongoose.model('Question', questionSchema);
 export default Question;

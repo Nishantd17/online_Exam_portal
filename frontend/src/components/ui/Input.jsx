@@ -16,11 +16,11 @@ const Input = ({
 }) => {
   const containerClass = floating ? 'relative mt-6' : 'flex flex-col gap-1.5';
   
-  const baseInputClass = 'w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue disabled:opacity-50 disabled:cursor-not-allowed dark:bg-darkSurface dark:text-darkText dark:border-slate-800';
+  const baseInputClass = 'w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#0d112b]/60 dark:text-darkText dark:border-slate-800/80 focus:dark:border-brand-neonCyan focus:dark:ring-brand-neonCyan/30';
   
   const errorInputClass = error
     ? 'border-brand-red focus:ring-brand-red/30 focus:border-brand-red'
-    : 'border-slate-200 focus:ring-brand-blue/30 focus:border-brand-blue';
+    : 'border-slate-200 focus:ring-brand-blue/30 focus:border-brand-blue dark:border-slate-800/80 focus:dark:border-brand-neonCyan';
 
   const paddedClass = icon ? 'pl-9' : '';
 

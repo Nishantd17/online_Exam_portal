@@ -12,6 +12,7 @@ export const createExam = async (req, res, next) => {
   try {
     const examData = req.body;
     examData.createdBy = req.user._id;
+    examData.organizationId = req.user.organizationId;
 
     if (!examData.title || !examData.category || !examData.type || !examData.duration) {
       throw new ApiError(400, 'Required basic parameters missing: title, category, type, duration');
@@ -37,7 +38,7 @@ export const createExam = async (req, res, next) => {
 export const getAdminExams = async (req, res, next) => {
   try {
     const { status, category } = req.query;
-    const query = {};
+    const query = { organizationId: req.user.organizationId };
 
     if (status) query.status = status;
     if (category) query.category = category;
@@ -55,7 +56,7 @@ export const getAdminExams = async (req, res, next) => {
 export const getExamById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const exam = await Exam.findById(id).populate('questions.question');
+    const exam = await Exam.findOne({ _id: id, organizationId: req.user.organizationId }).populate('questions.question');
 
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
@@ -79,7 +80,7 @@ export const updateExam = async (req, res, next) => {
       updateData.totalMarks = updateData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
     }
 
-    const exam = await Exam.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true });
+    const exam = await Exam.findOneAndUpdate({ _id: id, organizationId: req.user.organizationId }, { $set: updateData }, { new: true, runValidators: true });
 
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
@@ -96,7 +97,7 @@ export const updateExam = async (req, res, next) => {
 export const deleteExam = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const exam = await Exam.findByIdAndDelete(id);
+    const exam = await Exam.findOneAndDelete({ _id: id, organizationId: req.user.organizationId });
 
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
@@ -116,7 +117,7 @@ export const deleteExam = async (req, res, next) => {
 export const duplicateExam = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const original = await Exam.findById(id);
+    const original = await Exam.findOne({ _id: id, organizationId: req.user.organizationId });
 
     if (!original) {
       throw new ApiError(404, 'Original exam not found');
@@ -129,6 +130,7 @@ export const duplicateExam = async (req, res, next) => {
     duplicatedData.title = `${duplicatedData.title} (Copy)`;
     duplicatedData.status = EXAM_STATUS.DRAFT;
     duplicatedData.createdBy = req.user._id;
+    duplicatedData.organizationId = req.user.organizationId;
 
     const copy = await Exam.create(duplicatedData);
 
@@ -147,13 +149,14 @@ export const getStudentExams = async (req, res, next) => {
   try {
     const studentId = req.user._id;
 
-    // Fetch all published/in-progress/completed exams
+    // Fetch all published/in-progress/completed exams for organization
     const exams = await Exam.find({
-      status: { $in: [EXAM_STATUS.PUBLISHED, EXAM_STATUS.IN_PROGRESS, EXAM_STATUS.COMPLETED] }
+      status: { $in: [EXAM_STATUS.PUBLISHED, EXAM_STATUS.IN_PROGRESS, EXAM_STATUS.COMPLETED] },
+      organizationId: req.user.organizationId
     }).select('-questions');
 
     // Fetch student response records
-    const responses = await ExamResponse.find({ student: studentId });
+    const responses = await ExamResponse.find({ student: studentId, organizationId: req.user.organizationId });
 
     const responseMap = responses.reduce((map, r) => {
       map[r.exam.toString()] = r;
@@ -215,7 +218,7 @@ export const startExam = async (req, res, next) => {
     const { id } = req.params;
     const studentId = req.user._id;
 
-    const exam = await Exam.findById(id).populate('questions.question');
+    const exam = await Exam.findOne({ _id: id, organizationId: req.user.organizationId }).populate('questions.question');
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
     }
@@ -228,7 +231,7 @@ export const startExam = async (req, res, next) => {
     }
 
     // Check if response already exists
-    let response = await ExamResponse.findOne({ exam: id, student: studentId });
+    let response = await ExamResponse.findOne({ exam: id, student: studentId, organizationId: req.user.organizationId });
 
     if (response && (response.status === 'submitted' || response.status === 'auto_submitted')) {
       throw new ApiError(403, 'You have already submitted this exam');
@@ -237,7 +240,7 @@ export const startExam = async (req, res, next) => {
     // Create a new response if it doesn't exist
     if (!response) {
       // Check maximum attempts configuration
-      const pastAttempts = await ExamResponse.countDocuments({ exam: id, student: studentId, status: 'submitted' });
+      const pastAttempts = await ExamResponse.countDocuments({ exam: id, student: studentId, organizationId: req.user.organizationId, status: 'submitted' });
       if (pastAttempts >= exam.settings.maxAttempts) {
         throw new ApiError(403, 'Maximum exam attempts limit reached');
       }
@@ -253,6 +256,7 @@ export const startExam = async (req, res, next) => {
       response = await ExamResponse.create({
         exam: id,
         student: studentId,
+        organizationId: req.user.organizationId,
         answers: initialAnswers,
         startTime: new Date(),
         status: 'in_progress',
@@ -323,7 +327,7 @@ export const saveAnswer = async (req, res, next) => {
     const studentId = req.user._id;
     const { questionId, selectedOption, textAnswer, codeAnswer, status, timeSpent } = req.body;
 
-    const response = await ExamResponse.findOne({ exam: id, student: studentId });
+    const response = await ExamResponse.findOne({ exam: id, student: studentId, organizationId: req.user.organizationId });
     if (!response) {
       throw new ApiError(404, 'Exam session not found');
     }
@@ -353,6 +357,7 @@ export const saveAnswer = async (req, res, next) => {
       answer.timeSpent = (answer.timeSpent || 0) + (timeSpent || 0);
     }
 
+    response.markModified('answers');
     await response.save();
 
     return res.status(200).json(new ApiResponse(200, {}, 'Answer saved successfully'));
@@ -367,7 +372,7 @@ export const logViolation = async (req, res, next) => {
     const studentId = req.user._id;
     const { type, details } = req.body;
 
-    const response = await ExamResponse.findOne({ exam: id, student: studentId });
+    const response = await ExamResponse.findOne({ exam: id, student: studentId, organizationId: req.user.organizationId });
     if (!response) {
       throw new ApiError(404, 'Exam session not found');
     }

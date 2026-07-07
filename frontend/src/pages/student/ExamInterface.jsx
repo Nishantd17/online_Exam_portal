@@ -410,9 +410,9 @@ const ExamInterface = () => {
   };
 
   const getTimerColor = () => {
-    if (timeLeft < 120) return 'text-brand-red animate-pulse bg-red-950/20'; // under 2 mins
-    if (timeLeft < 600) return 'text-brand-amber bg-amber-950/20'; // under 10 mins
-    return 'text-slate-700 bg-slate-100 dark:text-darkText dark:bg-darkElevated';
+    if (timeLeft < 120) return 'text-brand-red animate-pulse bg-red-950/20 border border-brand-red/30 shadow-[0_0_15px_rgba(239,68,68,0.35)]'; // under 2 mins
+    if (timeLeft < 600) return 'text-brand-amber bg-amber-950/20 border border-brand-amber/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]'; // under 10 mins
+    return 'text-brand-neonCyan bg-cyan-950/20 border border-brand-neonCyan/20 shadow-[0_0_10px_rgba(0,240,255,0.15)]';
   };
 
   // PRE-EXAM SCREEN
@@ -501,6 +501,10 @@ const ExamInterface = () => {
   // SYSTEM DOWNLOADING STATE
   if (!activeExam) return null;
 
+  const totalSeconds = (activeExam?.duration || 60) * 60;
+  const timerPercent = totalSeconds > 0 ? (timeLeft / totalSeconds) * 100 : 0;
+  const strokeDashoffset = 50.26 - (50.26 * timerPercent) / 100;
+
   // LOCKDOWN EXAMINATION ROOM SCREEN
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-50 dark:bg-darkBg overflow-hidden select-none">
@@ -515,8 +519,23 @@ const ExamInterface = () => {
         </div>
 
         {/* Timer monospaced count */}
-        <div className={`px-4 py-1.5 rounded-full font-mono text-xs font-bold flex items-center gap-1.5 ${getTimerColor()}`}>
-          <span>⏱️</span>
+        <div className={`px-3 py-1.5 rounded-full font-mono text-xs font-bold flex items-center gap-2 ${getTimerColor()}`}>
+          <div className="relative w-5 h-5 flex items-center justify-center shrink-0">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle cx="10" cy="10" r="8" stroke="rgba(255,255,255,0.1)" strokeWidth="2" fill="transparent" />
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="transparent"
+                strokeDasharray="50.26"
+                strokeDashoffset={strokeDashoffset}
+                className="transition-all duration-1000"
+              />
+            </svg>
+          </div>
           <span>{formatTime(timeLeft)}</span>
         </div>
 
@@ -526,9 +545,9 @@ const ExamInterface = () => {
       </header>
 
       {/* Progress Bar under header */}
-      <div className="h-1 w-full bg-slate-800 shrink-0">
+      <div className="h-1.5 w-full bg-slate-800 shrink-0">
         <div
-          className="h-full bg-brand-emerald transition-all duration-300"
+          className="h-full bg-gradient-to-r from-brand-neonCyan to-brand-neonPurple glow-gradient-bar transition-all duration-300 shadow-[0_0_8px_#00f0ff]"
           style={{
             width: `${Math.round(
               (Object.keys(answers).filter((k) => answers[k]?.status === 'answered').length / questions.length) * 100
@@ -540,7 +559,7 @@ const ExamInterface = () => {
       {/* Main split workarea */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side: Question Palette (numbered matrix) */}
-        <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-darkSurface p-4 overflow-y-auto shrink-0 flex flex-col gap-4">
+        <aside className="w-64 border-r border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#0d112b]/60 dark:backdrop-blur-xl p-4 overflow-y-auto shrink-0 flex flex-col gap-4">
           <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest block">Question Palette</span>
           
           <div className="grid grid-cols-4 gap-2">

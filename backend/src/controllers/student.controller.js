@@ -8,7 +8,7 @@ export const getStudents = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, search = '', status = 'All', sortBy = 'createdAt' } = req.query;
 
-    const query = { role: ROLES.STUDENT };
+    const query = { role: ROLES.STUDENT, organizationId: req.user.organizationId };
 
     if (search) {
       query.$or = [
@@ -82,7 +82,7 @@ export const getStudents = async (req, res, next) => {
 
 export const createStudent = async (req, res, next) => {
   try {
-    const { fullName, email, password, phone, organization } = req.body;
+    const { fullName, email, password, phone } = req.body;
 
     if (!fullName || !email || !password) {
       throw new ApiError(400, 'Full name, email and password are required');
@@ -99,7 +99,7 @@ export const createStudent = async (req, res, next) => {
       password,
       role: ROLES.STUDENT,
       phone,
-      organization,
+      organizationId: req.user.organizationId,
       isVerified: true
     });
 
@@ -116,11 +116,11 @@ export const createStudent = async (req, res, next) => {
 export const updateStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { fullName, phone, organization, isActive } = req.body;
+    const { fullName, phone, isActive } = req.body;
 
     const student = await User.findOneAndUpdate(
-      { _id: id, role: ROLES.STUDENT },
-      { $set: { fullName, phone, organization, isActive } },
+      { _id: id, role: ROLES.STUDENT, organizationId: req.user.organizationId },
+      { $set: { fullName, phone, isActive } },
       { new: true, runValidators: true }
     ).select('-password');
 
@@ -140,14 +140,14 @@ export const deleteStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const student = await User.findOneAndDelete({ _id: id, role: ROLES.STUDENT });
+    const student = await User.findOneAndDelete({ _id: id, role: ROLES.STUDENT, organizationId: req.user.organizationId });
 
     if (!student) {
       throw new ApiError(404, 'Student not found');
     }
 
     // Clean up responses
-    await ExamResponse.deleteMany({ student: id });
+    await ExamResponse.deleteMany({ student: id, organizationId: req.user.organizationId });
 
     return res
       .status(200)
@@ -159,7 +159,7 @@ export const deleteStudent = async (req, res, next) => {
 
 export const bulkImport = async (req, res, next) => {
   try {
-    const { students } = req.body; // Expecting array of { fullName, email, password, phone, organization }
+    const { students } = req.body; // Expecting array of { fullName, email, password, phone }
     
     if (!students || !Array.isArray(students)) {
       throw new ApiError(400, 'Invalid import data format. Expected an array of student objects.');
@@ -169,7 +169,7 @@ export const bulkImport = async (req, res, next) => {
 
     for (const studentData of students) {
       try {
-        const { fullName, email, password = 'DefaultPassword123!', phone, organization } = studentData;
+        const { fullName, email, password = 'DefaultPassword123!', phone } = studentData;
 
         if (!fullName || !email) {
           results.skipped++;
@@ -190,7 +190,7 @@ export const bulkImport = async (req, res, next) => {
           password,
           role: ROLES.STUDENT,
           phone,
-          organization,
+          organizationId: req.user.organizationId,
           isVerified: true
         });
 
@@ -211,12 +211,12 @@ export const bulkImport = async (req, res, next) => {
 
 export const exportStudents = async (req, res, next) => {
   try {
-    const students = await User.find({ role: ROLES.STUDENT });
+    const students = await User.find({ role: ROLES.STUDENT, organizationId: req.user.organizationId });
     
-    let csv = 'Full Name,Email,Phone,Organization,Status,Registration Date\n';
+    let csv = 'Full Name,Email,Phone,Status,Registration Date\n';
     
     students.forEach((s) => {
-      csv += `"${s.fullName}","${s.email}","${s.phone || 'N/A'}","${s.organization || 'N/A'}",${s.isActive ? 'Active' : 'Inactive'},"${s.createdAt.toISOString()}"\n`;
+      csv += `"${s.fullName}","${s.email}","${s.phone || 'N/A'}",${s.isActive ? 'Active' : 'Inactive'},"${s.createdAt.toISOString()}"\n`;
     });
 
     res.setHeader('Content-Type', 'text/csv');

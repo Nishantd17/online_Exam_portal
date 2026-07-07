@@ -6,6 +6,7 @@ export const createQuestion = async (req, res, next) => {
   try {
     const questionData = req.body;
     questionData.createdBy = req.user._id;
+    questionData.organizationId = req.user.organizationId;
 
     if (!questionData.text || !questionData.type || !questionData.difficulty || !questionData.category) {
       throw new ApiError(400, 'Required fields missing: text, type, difficulty, category');
@@ -33,7 +34,7 @@ export const getQuestions = async (req, res, next) => {
       topic
     } = req.query;
 
-    const query = {};
+    const query = { organizationId: req.user.organizationId };
 
     if (search) {
       query.$text = { $search: search };
@@ -85,7 +86,7 @@ export const getQuestions = async (req, res, next) => {
 export const getQuestionById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const question = await Question.findById(id);
+    const question = await Question.findOne({ _id: id, organizationId: req.user.organizationId });
 
     if (!question) {
       throw new ApiError(404, 'Question not found');
@@ -104,7 +105,7 @@ export const updateQuestion = async (req, res, next) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const question = await Question.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true });
+    const question = await Question.findOneAndUpdate({ _id: id, organizationId: req.user.organizationId }, { $set: updateData }, { new: true, runValidators: true });
 
     if (!question) {
       throw new ApiError(404, 'Question not found');
@@ -120,8 +121,7 @@ export const updateQuestion = async (req, res, next) => {
 
 export const deleteQuestion = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const question = await Question.findByIdAndDelete(id);
+    const question = await Question.findOneAndDelete({ _id: id, organizationId: req.user.organizationId });
 
     if (!question) {
       throw new ApiError(404, 'Question not found');
@@ -145,7 +145,8 @@ export const bulkImportQuestions = async (req, res, next) => {
 
     const formattedQuestions = questions.map((q) => ({
       ...q,
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      organizationId: req.user.organizationId
     }));
 
     const importedQuestions = await Question.insertMany(formattedQuestions);

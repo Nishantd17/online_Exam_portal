@@ -100,6 +100,11 @@ const examSchema = new mongoose.Schema({
     enum: Object.values(EXAM_STATUS),
     default: EXAM_STATUS.DRAFT
   },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -119,6 +124,7 @@ const examSchema = new mongoose.Schema({
 
 examSchema.index({ status: 1 });
 examSchema.index({ createdBy: 1 });
+examSchema.index({ organizationId: 1 });
 
 const Exam = mongoose.model('Exam', examSchema);
 export default Exam;

@@ -2,68 +2,496 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   CSS CUSTOM PROPERTIES — Design Tokens
+   ============================================================ */
+:root {
+  --aurora-1: #00f0ff;
+  --aurora-2: #8b5cf6;
+  --aurora-3: #06b6d4;
+  --aurora-4: #ec4899;
+  --neon-cyan: rgba(0, 240, 255, 1);
+  --neon-violet: rgba(139, 92, 246, 1);
+  --neon-emerald: rgba(16, 185, 129, 1);
+  --neon-red: rgba(239, 68, 68, 1);
+  --neon-amber: rgba(245, 158, 11, 1);
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --neu-shadow-light: 8px 8px 20px rgba(0,0,0,0.4), -4px -4px 12px rgba(255,255,255,0.04);
+  --neu-shadow-inset: inset 4px 4px 12px rgba(0,0,0,0.5), inset -2px -2px 8px rgba(255,255,255,0.03);
+}
+
+/* ============================================================
+   BASE LAYER
+   ============================================================ */
 @layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
   body {
-    @apply bg-slate-50 text-slate-900 dark:bg-darkBg dark:text-darkText transition-colors duration-200;
+    font-family: 'Inter', 'Space Grotesk', sans-serif;
+    @apply bg-slate-50 text-slate-900 transition-colors duration-200;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  .dark body {
+    background: linear-gradient(135deg, #050814 0%, #0a0e27 30%, #110e30 60%, #1b1437 85%, #0d0a1e 100%) !important;
+    background-attachment: fixed !important;
+    color: #F1F5F9;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
   }
 }
 
-/* Glassmorphism styling utilities */
+/* ============================================================
+   1. AURORA GLASSMORPHISM — Background Orbs
+   ============================================================ */
+body::before {
+  content: '';
+  position: fixed;
+  top: -15%;
+  left: -15%;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.07) 0%, rgba(139, 92, 246, 0.04) 40%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+  animation: aurora-drift-a 28s infinite alternate ease-in-out;
+  filter: blur(40px);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -15%;
+  right: -15%;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, rgba(6, 182, 212, 0.04) 40%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+  animation: aurora-drift-b 35s infinite alternate ease-in-out;
+  filter: blur(40px);
+}
+
+/* Third aurora orb */
+.aurora-orb-3 {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.05) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+  animation: aurora-drift-c 40s infinite alternate ease-in-out;
+  filter: blur(60px);
+}
+
+/* ============================================================
+   2. GLASSMORPHISM UTILITIES
+   ============================================================ */
 .glass-panel {
-  @apply backdrop-blur-xl bg-white/80 border border-slate-200/50 dark:bg-slate-900/80 dark:border-slate-800/50;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  @apply transition-all duration-300;
 }
 
 .glass-card {
-  @apply backdrop-blur-xl bg-white/70 border border-slate-200/50 dark:bg-slate-900/70 dark:border-slate-800/50 shadow-sm hover:shadow-md transition-all duration-300;
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  @apply bg-white/80 dark:bg-white/[0.04] border border-slate-200/60 dark:border-white/[0.08] shadow-sm transition-all duration-300;
 }
 
-/* Custom shimmer animation for Loading Skeletons */
+.dark .glass-card:hover {
+  border-color: rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.12), 0 0 60px rgba(139, 92, 246, 0.06), inset 0 0 20px rgba(0, 240, 255, 0.04);
+  transform: translateY(-2px);
+}
+
+.glass-ultra {
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+/* ============================================================
+   3. NEON GLOW UTILITIES
+   ============================================================ */
+.neon-cyan {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4), 0 0 40px rgba(0, 240, 255, 0.2);
+}
+.neon-violet {
+  color: var(--neon-violet);
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.4);
+}
+.neon-emerald {
+  color: var(--neon-emerald);
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.neon-border-cyan {
+  border-color: rgba(0, 240, 255, 0.5) !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.2), inset 0 0 8px rgba(0, 240, 255, 0.05);
+}
+.neon-border-violet {
+  border-color: rgba(139, 92, 246, 0.5) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2), inset 0 0 8px rgba(139, 92, 246, 0.05);
+}
+.neon-border-emerald {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2), inset 0 0 8px rgba(16, 185, 129, 0.05);
+}
+.neon-border-red {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2), inset 0 0 8px rgba(239, 68, 68, 0.05);
+}
+
+/* Chart glow filter */
+.chart-neon-cyan { filter: drop-shadow(0 0 6px rgba(0,240,255,0.7)) drop-shadow(0 0 14px rgba(0,240,255,0.4)); }
+.chart-neon-violet { filter: drop-shadow(0 0 6px rgba(139,92,246,0.7)) drop-shadow(0 0 14px rgba(139,92,246,0.4)); }
+.chart-neon-emerald { filter: drop-shadow(0 0 6px rgba(16,185,129,0.7)) drop-shadow(0 0 14px rgba(16,185,129,0.4)); }
+
+/* ============================================================
+   4. DARK NEUMORPHISM — 3D Pressed Effect
+   ============================================================ */
+.neu-card {
+  background: #12172a;
+  box-shadow: var(--neu-shadow-light);
+  border-radius: 16px;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+.neu-card:hover {
+  box-shadow: 12px 12px 24px rgba(0,0,0,0.5), -6px -6px 16px rgba(255,255,255,0.05);
+  transform: translateY(-3px);
+}
+.neu-pressed {
+  box-shadow: var(--neu-shadow-inset) !important;
+  transform: scale(0.98);
+}
+.neu-button {
+  background: linear-gradient(145deg, #1a2040, #0f1428);
+  box-shadow: 5px 5px 12px rgba(0,0,0,0.5), -3px -3px 8px rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.2s ease;
+}
+.neu-button:hover {
+  box-shadow: 7px 7px 16px rgba(0,0,0,0.6), -4px -4px 10px rgba(255,255,255,0.05);
+}
+.neu-button:active {
+  box-shadow: var(--neu-shadow-inset);
+  transform: scale(0.97);
+}
+
+/* ============================================================
+   5. CYBERPUNK HOLOGRAM HUD
+   ============================================================ */
+.hud-panel {
+  position: relative;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.05) 0%, rgba(139, 92, 246, 0.03) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.1), inset 0 0 30px rgba(0, 240, 255, 0.03);
+  overflow: hidden;
+}
+
+.hud-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 240, 255, 0.015) 2px,
+    rgba(0, 240, 255, 0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+  animation: scanlines-move 8s linear infinite;
+}
+
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.8), transparent);
+  animation: hud-scan 3s linear infinite;
+  z-index: 1;
+}
+
+.hud-corner {
+  position: absolute;
+  width: 16px; height: 16px;
+  border-color: rgba(0, 240, 255, 0.8);
+  border-style: solid;
+}
+.hud-corner-tl { top: 0; left: 0; border-width: 2px 0 0 2px; }
+.hud-corner-tr { top: 0; right: 0; border-width: 2px 2px 0 0; }
+.hud-corner-bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+.hud-corner-br { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+
+.hud-glitch {
+  animation: glitch 4s infinite;
+}
+
+/* ============================================================
+   6. 3D PERSPECTIVE CARD UTILITIES
+   ============================================================ */
+.card-3d-wrapper {
+  perspective: 1200px;
+  perspective-origin: center center;
+}
+
+.card-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: transform;
+}
+
+.card-3d-front, .card-3d-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card-3d-back {
+  transform: rotateY(180deg);
+}
+
+.card-3d.flipped {
+  transform: rotateY(180deg);
+}
+
+/* Mouse-tracking tilt effect */
+.tilt-card {
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out;
+  will-change: transform;
+}
+
+/* ============================================================
+   7. BLOB MORPHING
+   ============================================================ */
+.blob {
+  position: absolute;
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  filter: blur(40px);
+  opacity: 0.6;
+  pointer-events: none;
+  animation: blob-morph 12s ease-in-out infinite alternate;
+}
+.blob-2 { animation: blob-morph-2 15s ease-in-out infinite alternate; }
+.blob-3 { animation: blob-morph-3 18s ease-in-out infinite alternate; }
+
+/* ============================================================
+   8. SCROLL PARALLAX HELPERS
+   ============================================================ */
+.parallax-layer { will-change: transform; }
+.parallax-slow  { transform: translateY(var(--scroll-y-slow, 0)); }
+.parallax-fast  { transform: translateY(var(--scroll-y-fast, 0)); }
+
+/* ============================================================
+   9. SHIMMER & LOADING
+   ============================================================ */
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
-
 .animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(229, 231, 235, 0.4) 25%,
-    rgba(243, 244, 246, 0.7) 50%,
-    rgba(229, 231, 235, 0.4) 75%
-  );
+  background: linear-gradient(90deg, rgba(229,231,235,0.4) 25%, rgba(243,244,246,0.7) 50%, rgba(229,231,235,0.4) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
 }
-
 .dark .animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(30, 41, 59, 0.4) 25%,
-    rgba(51, 65, 85, 0.7) 50%,
-    rgba(30, 41, 59, 0.4) 75%
-  );
+  background: linear-gradient(90deg, rgba(30,41,59,0.4) 25%, rgba(51,65,85,0.7) 50%, rgba(30,41,59,0.4) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
 }
 
-/* Scrollbar customizations */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ============================================================
+   10. FLOATING / ANTIGRAVITY ANIMATIONS
+   ============================================================ */
+.antigravity-float         { animation: float-normal 6s ease-in-out infinite; }
+.antigravity-float-delayed { animation: float-delayed 8s ease-in-out infinite; }
+.antigravity-float-slow    { animation: float-slow 10s ease-in-out infinite; }
+.animate-entrance          { animation: entrance-fade 0.7s cubic-bezier(0.21, 1.02, 0.43, 1.01) forwards; }
+.neon-glow-cyan            { animation: neon-pulse-cyan 3s infinite ease-in-out; }
+.glow-gradient-bar         { animation: glow-bar 2s infinite ease-in-out; }
+
+/* ============================================================
+   KEYFRAMES — All Animations
+   ============================================================ */
+@keyframes aurora-drift-a {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33%  { transform: translate(8vw, 6vh) scale(1.08) rotate(5deg); }
+  66%  { transform: translate(4vw, 12vh) scale(0.95) rotate(-3deg); }
+  100% { transform: translate(12vw, 5vh) scale(1.1) rotate(8deg); }
+}
+@keyframes aurora-drift-b {
+  0%   { transform: translate(0, 0) scale(1.05) rotate(0deg); }
+  33%  { transform: translate(-10vw, -7vh) scale(0.95) rotate(-6deg); }
+  66%  { transform: translate(-5vw, -14vh) scale(1.12) rotate(4deg); }
+  100% { transform: translate(-8vw, -4vh) scale(0.9) rotate(-10deg); }
+}
+@keyframes aurora-drift-c {
+  0%   { transform: translateX(-50%) scale(1); opacity: 0.4; }
+  50%  { transform: translateX(-50%) scale(1.3); opacity: 0.6; }
+  100% { transform: translateX(-50%) scale(0.8); opacity: 0.3; }
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
+@keyframes float-normal {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%       { transform: translateY(-6px) rotate(1deg); }
 }
 
+@keyframes entrance-fade {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes neon-pulse-cyan {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0,240,255,0.2), inset 0 0 5px rgba(0,240,255,0.1);
+    border-color: rgba(0,240,255,0.25);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0,240,255,0.5), inset 0 0 15px rgba(0,240,255,0.15);
+    border-color: rgba(0,240,255,0.65);
+  }
+}
+
+@keyframes glow-bar {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 1; filter: brightness(1.3); }
+}
+
+@keyframes blob-morph {
+  0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25%  { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50%  { border-radius: 50% 50% 40% 60% / 40% 70% 30% 60%; }
+  75%  { border-radius: 40% 60% 60% 40% / 70% 30% 50% 50%; }
+  100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+}
+@keyframes blob-morph-2 {
+  0%   { border-radius: 40% 60% 70% 30% / 50% 40% 60% 50%; }
+  50%  { border-radius: 70% 30% 40% 60% / 60% 50% 40% 60%; }
+  100% { border-radius: 40% 60% 70% 30% / 50% 40% 60% 50%; }
+}
+@keyframes blob-morph-3 {
+  0%   { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+  33%  { border-radius: 70% 30% 60% 40% / 40% 70% 30% 60%; }
+  66%  { border-radius: 30% 70% 40% 60% / 60% 40% 70% 30%; }
+  100% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+}
+
+@keyframes scanlines-move {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 40px; }
+}
+
+@keyframes hud-scan {
+  0%   { top: -2px; opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes glitch {
+  0%, 92%, 100% { transform: translate(0); filter: none; }
+  93%  { transform: translate(-2px, 1px); filter: hue-rotate(90deg); }
+  94%  { transform: translate(2px, -1px); }
+  95%  { transform: translate(-1px, 2px); filter: hue-rotate(-90deg); }
+  96%  { transform: translate(0); filter: none; }
+  97%  { transform: translate(3px, -2px); filter: hue-rotate(45deg); }
+  98%  { transform: translate(-2px, 1px); }
+  99%  { transform: translate(0); filter: none; }
+}
+
+@keyframes neon-line-draw {
+  from { stroke-dashoffset: 1000; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin-slow 20s linear infinite; }
+
+@keyframes ping-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(1.5); }
+}
+.animate-ping-slow { animation: ping-slow 3s ease-in-out infinite; }
+
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
+  background: linear-gradient(180deg, rgba(0,240,255,0.4), rgba(139,92,246,0.4));
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(0,240,255,0.7), rgba(139,92,246,0.7));
 }
 
-/* Input floating label helper class */
+/* ============================================================
+   HOLOGRAPHIC SHIMMER on Cards
+   ============================================================ */
+.holographic {
+  position: relative;
+  overflow: hidden;
+}
+.holographic::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(0,240,255,0.08) 60deg,
+    rgba(139,92,246,0.08) 120deg,
+    rgba(236,72,153,0.08) 180deg,
+    transparent 240deg
+  );
+  animation: spin-slow 8s linear infinite;
+  pointer-events: none;
+}
+
+/* ============================================================
+   FLOATING LABEL INPUT
+   ============================================================ */
 .floating-label-input:focus-within ~ label,
 .floating-label-input:not(:placeholder-shown) ~ label {
   transform: translateY(-1.25rem) scale(0.85);

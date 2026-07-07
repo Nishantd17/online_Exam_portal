@@ -7,8 +7,10 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAuth } from '../../context/AuthContext';
 
 const StudentDashboard = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ upcoming: [], active: [], completed: [] });
   const [results, setResults] = useState([]);
@@ -76,16 +78,18 @@ const StudentDashboard = () => {
   return (
     <div className="space-y-8">
       {/* Greet wave banner */}
-      <div className="flex flex-col gap-1.5">
+      <div className="space-y-1">
         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-          Welcome back! <span className="animate-bounce">👋</span>
+          Welcome back, {user?.fullName || 'Student'}! <span className="animate-bounce">👋</span>
         </h1>
-        <p className="text-sm text-slate-450 dark:text-darkMuted">Here is a summary of your active test papers and performance analytics.</p>
+        <p className="text-sm text-slate-450 dark:text-darkMuted">
+          Classroom: <span className="font-semibold text-brand-blue dark:text-brand-blueLight">{user?.organizationId?.name || 'Loading organization...'}</span> • Here is your active dashboard.
+        </p>
       </div>
 
       {/* Grid of counters */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Upcoming Exams</p>
@@ -95,7 +99,7 @@ const StudentDashboard = () => {
           </div>
         </Card>
 
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float-delayed">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Completed Exams</p>
@@ -105,7 +109,7 @@ const StudentDashboard = () => {
           </div>
         </Card>
 
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Average Score</p>
@@ -115,7 +119,7 @@ const StudentDashboard = () => {
           </div>
         </Card>
 
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float-delayed">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Cohort Rank</p>

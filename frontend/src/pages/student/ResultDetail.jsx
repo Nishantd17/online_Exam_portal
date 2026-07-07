@@ -35,8 +35,46 @@ const ResultDetail = () => {
 
   if (!result) return null;
 
+  if (result.status === 'Pending') {
+    return (
+      <div className="space-y-8">
+        {/* Breadcrumb back navigation */}
+        <div className="flex items-center gap-2">
+          <Link to="/student/results" className="text-slate-400 hover:text-slate-600 transition-colors">
+            <ArrowLeft size={16} />
+          </Link>
+          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Results / Under Review</span>
+        </div>
+
+        <div className="bg-gradient-to-r from-brand-blue/10 to-brand-violet/10 border border-brand-blue/20 dark:from-brand-blue/15 dark:to-brand-violet/15 dark:border-brand-blue/30 rounded-2xl p-8 text-center space-y-5">
+          <div className="h-16 w-16 bg-brand-blue/10 rounded-full flex items-center justify-center text-brand-blue text-2xl mx-auto animate-bounce">
+            ⏳
+          </div>
+          <div className="space-y-2 max-w-md mx-auto">
+            <h1 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white leading-tight">
+              Assessment Pending Review
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-darkMuted leading-relaxed">
+              Your exam has been submitted successfully.<br />
+              Your result is under review by the administrator.<br />
+              You will be able to view it once it is published.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3 pt-2">
+            <Link to="/student/results">
+              <Button size="sm" variant="outline">Back to Results</Button>
+            </Link>
+            <Link to="/student/dashboard">
+              <Button size="sm">Go to Dashboard</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Format radar data matching topicWise values
-  const radarData = result.topicWise.map((topic) => ({
+  const radarData = (result.topicWise || []).map((topic) => ({
     subject: topic.topic,
     Score: topic.percentage,
     Average: result.cohortStats?.average || 65
@@ -92,7 +130,7 @@ const ResultDetail = () => {
 
       {/* Grid of details */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float">
           <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Integrity violations</p>
           <div className="flex items-baseline gap-2 mt-1.5">
             <p className="text-2xl font-extrabold text-slate-800 dark:text-white">
@@ -102,17 +140,17 @@ const ResultDetail = () => {
           </div>
         </Card>
 
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float-delayed">
           <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Correct Answers</p>
           <div className="flex items-baseline gap-2 mt-1.5">
             <p className="text-2xl font-extrabold text-brand-emerald">
               {result.correctAnswers}
             </p>
-            <span className="text-[9px] text-slate-450 dark:text-darkMuted">/ {result.totalQuestions}</span>
+            <span className="text-[9px] text-slate-455 dark:text-darkMuted">/ {result.totalQuestions}</span>
           </div>
         </Card>
 
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float">
           <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Average time per question</p>
           <div className="flex items-baseline gap-2 mt-1.5">
             <p className="text-2xl font-extrabold text-slate-800 dark:text-white">
@@ -122,7 +160,7 @@ const ResultDetail = () => {
           </div>
         </Card>
 
-        <Card variant="gradient">
+        <Card variant="gradient" className="antigravity-float-delayed">
           <p className="text-[10px] font-bold text-slate-400 dark:text-darkMuted uppercase tracking-wider">Cohort Percentile</p>
           <div className="flex items-baseline gap-2 mt-1.5">
             <p className="text-2xl font-extrabold text-brand-blue">
@@ -159,9 +197,9 @@ const ResultDetail = () => {
         <Card className="space-y-4">
           <h3 className="text-sm font-bold text-slate-850 dark:text-white">Subject-wise Efficiency</h3>
           <div className="h-[280px]">
-            {result.subjectWise.length > 0 ? (
+            {(result.subjectWise || []).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={result.subjectWise} layout="vertical" margin={{ left: 20 }}>
+                <BarChart data={result.subjectWise || []} layout="vertical" margin={{ left: 20 }}>
                   <XAxis type="number" domain={[0, 100]} stroke="#94A3B8" fontSize={9} />
                   <YAxis dataKey="subject" type="category" stroke="#94A3B8" fontSize={9} width={80} />
                   <Tooltip

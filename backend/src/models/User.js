@@ -77,6 +77,10 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     }
+  },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization'
   }
 }, {
   timestamps: true
@@ -84,6 +88,7 @@ const userSchema = new mongoose.Schema({
 
 // Indexes
 userSchema.index({ role: 1 });
+userSchema.index({ organizationId: 1 });
 
 // Pre-save hook to hash password
 userSchema.pre('save', async function(next) {

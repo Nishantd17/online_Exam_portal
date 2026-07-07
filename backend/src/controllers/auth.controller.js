@@ -1,5 +1,7 @@
 import User from '../models/User.js';
 import Otp from '../models/Otp.js';
+import mongoose from 'mongoose';
+import Organization from '../models/Organization.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/tokenUtils.js';
@@ -12,9 +14,31 @@ const cookieOptions = {
   sameSite: 'strict'
 };
 
+const generateUniqueJoinCode = async () => {
+  let isUnique = false;
+  let joinCode = '';
+  while (!isUnique) {
+    joinCode = Math.random().toString(36).substring(2, 10).toUpperCase(); // 8 characters
+    const existing = await Organization.findOne({ joinCode });
+    if (!existing) isUnique = true;
+  }
+  return joinCode;
+};
+
+const generateUniqueOrgId = async () => {
+  let isUnique = false;
+  let orgId = '';
+  while (!isUnique) {
+    orgId = 'ORG_' + Math.random().toString(36).substring(2, 8).toUpperCase(); // e.g. ORG_ABC123
+    const existing = await Organization.findOne({ orgId });
+    if (!existing) isUnique = true;
+  }
+  return orgId;
+};
+
 export const signup = async (req, res, next) => {
   try {
-    const { fullName, email, password, role, organization, phone } = req.body;
+    const { fullName, email, password, role, organization, phone, joinCode } = req.body;
 
     if (!fullName || !email || !password) {
       throw new ApiError(400, 'Full name, email and password are required');
@@ -31,21 +55,55 @@ export const signup = async (req, res, next) => {
       throw new ApiError(400, 'Email is not verified. Please verify your email first.');
     }
 
+    let organizationId;
+    let orgDoc;
+
+    if (role === 'admin') {
+      if (!organization) {
+        throw new ApiError(400, 'Organization / Institution Name is required for Administrators');
+      }
+      const orgId = await generateUniqueOrgId();
+      const code = await generateUniqueJoinCode();
+      orgDoc = await Organization.create({
+        name: organization.trim(),
+        orgId,
+        joinCode: code,
+        createdBy: new mongoose.Types.ObjectId() // temporary ID, updated below
+      });
+      organizationId = orgDoc._id;
+    } else {
+      // student
+      if (!joinCode) {
+        throw new ApiError(400, 'Organization Join Code is required for Students');
+      }
+      const matchedOrg = await Organization.findOne({ joinCode: joinCode.trim().toUpperCase() });
+      if (!matchedOrg) {
+        throw new ApiError(400, 'Invalid Organization Code');
+      }
+      organizationId = matchedOrg._id;
+    }
+
     // Creating user (will automatically hash password through User schema pre-save hook)
     const user = await User.create({
       fullName,
       email,
       password,
       role: role || 'student',
-      organization,
+      organizationId,
       phone,
       isVerified: true
     });
 
+    // If Admin, update the Organization's createdBy back to actual Admin user ID
+    if (role === 'admin' && orgDoc) {
+      orgDoc.createdBy = user._id;
+      await orgDoc.save();
+    }
+
     // Delete verified OTP record so it cannot be reused
     await Otp.deleteMany({ email });
 
-    const userResponse = await User.findById(user._id).select('-password');
+    const userResponse = await User.findById(user._id).select('-password').populate('organizationId');
 
     return res
       .status(201)
@@ -193,7 +251,7 @@ export const login = async (req, res, next) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const userWithoutPassword = await User.findById(user._id).select('-password');
+    const userWithoutPassword = await User.findById(user._id).select('-password').populate('organizationId');
 
     return res
       .status(200)
@@ -312,12 +370,33 @@ export const forgotPassword = async (req, res, next) => {
 
     await user.save();
 
+    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    const subject = 'Password Reset Request - ExamPortal';
+    const text = `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser to complete the process within 10 minutes of receiving it:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #2563eb; text-align: center;">Reset Your Password</h2>
+        <p>Hello,</p>
+        <p>We received a request to reset your password. Click the button below to choose a new password. This link is valid for <strong>10 minutes</strong>.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+        </div>
+        <p>Or copy and paste this URL into your browser:</p>
+        <p style="word-break: break-all; color: #64748b; font-size: 14px;"><a href="${resetUrl}">${resetUrl}</a></p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">If you did not request a password reset, please ignore this email.</p>
+      </div>
+    `;
+
+    // Send email using mailer utility
+    await sendEmail({ to: email, subject, html, text });
+
     console.log(`Password reset token generated: ${resetToken}`);
-    console.log(`Reset link: http://localhost:5173/reset-password/${resetToken}`);
+    console.log(`Reset link: ${resetUrl}`);
 
     return res
       .status(200)
-      .json(new ApiResponse(200, { resetToken }, 'Password reset instructions printed in console. Use the token to reset.'));
+      .json(new ApiResponse(200, { resetToken }, 'Password reset instructions sent. Please check your email inbox.'));
   } catch (error) {
     next(error);
   }

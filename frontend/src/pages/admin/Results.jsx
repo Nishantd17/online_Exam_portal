@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, FileText, Download, Award, ShieldAlert, CheckCircle, AlertTriangle, Eye } from 'lucide-react';
+import { motion } from 'framer-motion';
 import api from '../../services/api';
 import Card from '../../components/ui/Card';
+import Card3D from '../../components/ui/Card3D';
+import HudPanel from '../../components/ui/HudPanel';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Table from '../../components/ui/Table';

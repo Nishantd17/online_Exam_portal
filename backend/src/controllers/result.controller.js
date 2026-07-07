@@ -20,6 +20,8 @@ const gradeExamResponse = async (exam, response) => {
 
   for (const item of exam.questions) {
     const qDetails = item.question;
+    if (!qDetails) continue; // Skip if question details are missing/deleted
+    
     const studentAns = response.answers.find((ans) => ans.question.toString() === qDetails._id.toString());
 
     let isCorrect = false;
@@ -38,23 +40,58 @@ const gradeExamResponse = async (exam, response) => {
         switch (qDetails.type) {
           case 'mcq_single':
             studentProvidedValue = studentAns.selectedOption;
-            // Check if selected option is marked correct
-            const correctOptIdx = qDetails.options.findIndex(opt => opt.isCorrect);
-            if (correctOptIdx !== -1 && String(correctOptIdx) === String(studentProvidedValue)) {
+            // Check both properties: correctAnswer index and options array findIndex
+            const correctOptIdx = qDetails.options ? qDetails.options.findIndex(opt => opt.isCorrect) : -1;
+            const dbCorrectAnswer = qDetails.correctAnswer;
+            
+            if (
+              (correctOptIdx !== -1 && String(correctOptIdx) === String(studentProvidedValue)) ||
+              (dbCorrectAnswer !== undefined && dbCorrectAnswer !== null && String(dbCorrectAnswer) === String(studentProvidedValue))
+            ) {
               isCorrect = true;
             }
             break;
 
           case 'mcq_multiple':
             studentProvidedValue = studentAns.selectedOption; // should be array of indices
+            let selectedOptionsArray = [];
             if (Array.isArray(studentProvidedValue)) {
-              const correctIndices = qDetails.options
-                .map((opt, idx) => (opt.isCorrect ? idx : null))
-                .filter((idx) => idx !== null);
+              selectedOptionsArray = studentProvidedValue;
+            } else if (typeof studentProvidedValue === 'string') {
+              try {
+                const parsed = JSON.parse(studentProvidedValue);
+                if (Array.isArray(parsed)) {
+                  selectedOptionsArray = parsed;
+                } else {
+                  selectedOptionsArray = studentProvidedValue.split(',').map(s => s.trim());
+                }
+              } catch (e) {
+                selectedOptionsArray = studentProvidedValue.split(',').map(s => s.trim());
+              }
+            }
+            
+            // Check correct indices
+            const correctIndices = [];
+            if (qDetails.options) {
+              qDetails.options.forEach((opt, idx) => {
+                if (opt.isCorrect) correctIndices.push(idx);
+              });
+            }
+            // Fallback to correctAnswer field if options didn't flag correctly
+            if (correctIndices.length === 0 && qDetails.correctAnswer) {
+              if (Array.isArray(qDetails.correctAnswer)) {
+                correctIndices.push(...qDetails.correctAnswer.map(v => parseInt(v, 10)));
+              } else if (typeof qDetails.correctAnswer === 'string') {
+                qDetails.correctAnswer.split(',').forEach(v => correctIndices.push(parseInt(v.trim(), 10)));
+              } else if (typeof qDetails.correctAnswer === 'number') {
+                correctIndices.push(qDetails.correctAnswer);
+              }
+            }
 
+            if (selectedOptionsArray.length > 0 && correctIndices.length > 0) {
               const isMatch =
-                studentProvidedValue.length === correctIndices.length &&
-                studentProvidedValue.every((val) => correctIndices.includes(parseInt(val, 10)));
+                selectedOptionsArray.length === correctIndices.length &&
+                selectedOptionsArray.every((val) => correctIndices.includes(parseInt(val, 10)));
               
               if (isMatch) {
                 isCorrect = true;
@@ -63,21 +100,23 @@ const gradeExamResponse = async (exam, response) => {
             break;
 
           case 'true_false':
-            studentProvidedValue = studentAns.textAnswer; // "true" or "false"
-            const correctTF = String(qDetails.correctAnswer).toLowerCase();
-            if (studentProvidedValue && String(studentProvidedValue).toLowerCase() === correctTF) {
-              isCorrect = true;
+            studentProvidedValue = studentAns.textAnswer || studentAns.selectedOption; // Support both
+            if (studentProvidedValue !== undefined && studentProvidedValue !== null) {
+              const correctTF = String(qDetails.correctAnswer).toLowerCase();
+              if (String(studentProvidedValue).toLowerCase() === correctTF) {
+                isCorrect = true;
+              }
             }
             break;
 
           case 'fill_blank':
-            studentProvidedValue = studentAns.textAnswer; // string
+            studentProvidedValue = studentAns.textAnswer || studentAns.selectedOption; // Support both
             if (studentProvidedValue && qDetails.correctAnswer) {
               const acceptedAnswers = String(qDetails.correctAnswer)
                 .split(',')
                 .map((ans) => ans.trim().toLowerCase());
               
-              if (acceptedAnswers.includes(studentProvidedValue.trim().toLowerCase())) {
+              if (acceptedAnswers.includes(String(studentProvidedValue).trim().toLowerCase())) {
                 isCorrect = true;
               }
             }
@@ -117,7 +156,7 @@ const gradeExamResponse = async (exam, response) => {
       }
     }
 
-    if (status === 'skipped' || (!studentProvidedValue && studentProvidedValue !== 0)) {
+    if (status === 'skipped' || (studentProvidedValue === null || studentProvidedValue === undefined || studentProvidedValue === '')) {
       skippedCount++;
       status = 'skipped';
     } else if (isCorrect) {
@@ -212,12 +251,12 @@ export const submitExam = async (req, res, next) => {
     const { id } = req.params; // Exam ID
     const studentId = req.user._id;
 
-    const exam = await Exam.findById(id).populate('questions.question');
+    const exam = await Exam.findOne({ _id: id, organizationId: req.user.organizationId }).populate('questions.question');
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
     }
 
-    const response = await ExamResponse.findOne({ exam: id, student: studentId });
+    const response = await ExamResponse.findOne({ exam: id, student: studentId, organizationId: req.user.organizationId });
     if (!response) {
       throw new ApiError(404, 'No active exam session found for this student');
     }
@@ -229,50 +268,49 @@ export const submitExam = async (req, res, next) => {
     // Run Grader Engine
     const graded = await gradeExamResponse(exam, response);
 
-    // Update response status
+    // Update response status (zero out graded aggregates for now)
     response.status = 'submitted';
     response.endTime = new Date();
     response.timeTaken = Math.round((response.endTime - response.startTime) / 1000); // in seconds
-    response.obtainedMarks = graded.obtainedMarks;
+    response.obtainedMarks = 0;
     response.totalMarks = exam.totalMarks;
-    response.percentage = graded.percentage;
-    response.passed = graded.passed;
+    response.percentage = 0;
+    response.passed = false;
     await response.save();
 
-    // Create detailed Result record
+    // Create detailed Result record with Pending status
     const result = await Result.create({
       exam: id,
       student: studentId,
       response: response._id,
+      organizationId: req.user.organizationId,
       attemptNumber: 1,
       totalQuestions: graded.totalQuestions,
       attemptedQuestions: graded.attemptedQuestions,
-      correctAnswers: graded.correctAnswers,
-      incorrectAnswers: graded.incorrectAnswers,
-      skippedQuestions: graded.skippedQuestions,
+      correctAnswers: 0,
+      incorrectAnswers: 0,
+      skippedQuestions: 0,
       totalMarks: exam.totalMarks,
-      obtainedMarks: graded.obtainedMarks,
-      percentage: graded.percentage,
-      passed: graded.passed,
-      subjectWise: graded.subjectWise,
-      topicWise: graded.topicWise,
+      obtainedMarks: 0,
+      percentage: 0,
+      passed: false,
+      status: 'Pending',
+      subjectWise: graded.subjectWise.map(s => ({ ...s, obtained: 0, percentage: 0 })),
+      topicWise: graded.topicWise.map(t => ({ ...t, obtained: 0, percentage: 0 })),
       timeAnalysis: {
         averageTimePerQuestion: Math.round(response.timeTaken / graded.totalQuestions),
         questionsExceedingTime: []
       },
-      questionBreakdown: graded.questionBreakdown
+      questionBreakdown: graded.questionBreakdown // Detailed breakdown remains evaluated for Admin review
     });
 
-    // Update exam aggregations
+    // Update exam attempts count
     exam.totalAttempts += 1;
-    const allResponses = await ExamResponse.find({ exam: id, status: 'submitted' });
-    const totalPercentageSum = allResponses.reduce((sum, r) => sum + r.percentage, 0);
-    exam.averageScore = Math.round(totalPercentageSum / allResponses.length);
     await exam.save();
 
     return res
       .status(200)
-      .json(new ApiResponse(200, result, 'Exam graded and submitted successfully'));
+      .json(new ApiResponse(200, result, 'Exam submitted successfully. Result is under review.'));
   } catch (error) {
     next(error);
   }
@@ -282,7 +320,7 @@ export const getStudentResults = async (req, res, next) => {
   try {
     const studentId = req.user._id;
 
-    const results = await Result.find({ student: studentId })
+    const results = await Result.find({ student: studentId, organizationId: req.user.organizationId })
       .populate('exam', 'title category duration')
       .sort({ createdAt: -1 });
 
@@ -297,7 +335,7 @@ export const getStudentResults = async (req, res, next) => {
 export const getResultById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await Result.findById(id)
+    const result = await Result.findOne({ _id: id, organizationId: req.user.organizationId })
       .populate('exam', 'title category questions instructions proctoring settings')
       .populate('student', 'fullName email')
       .populate('questionBreakdown.question');
@@ -306,18 +344,40 @@ export const getResultById = async (req, res, next) => {
       throw new ApiError(404, 'Result record not found');
     }
 
-    // Cohort mean comparison stats
-    const allResults = await Result.find({ exam: result.exam._id });
-    const scores = allResults.map((r) => r.percentage);
-    const average = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-    const highest = scores.length ? Math.max(...scores) : 0;
-
+    const isStudent = req.user.role === 'student';
     const responseJSON = result.toJSON();
-    responseJSON.cohortStats = {
-      average,
-      highest,
-      totalStudents: scores.length
-    };
+
+    if (isStudent && result.status === 'Pending') {
+      // Strip details from Pending status student responses
+      delete responseJSON.obtainedMarks;
+      delete responseJSON.percentage;
+      delete responseJSON.passed;
+      delete responseJSON.correctAnswers;
+      delete responseJSON.incorrectAnswers;
+      delete responseJSON.skippedQuestions;
+      delete responseJSON.questionBreakdown;
+      delete responseJSON.subjectWise;
+      delete responseJSON.topicWise;
+      delete responseJSON.timeAnalysis;
+      
+      responseJSON.cohortStats = {
+        average: 0,
+        highest: 0,
+        totalStudents: 0
+      };
+    } else {
+      // Cohort mean comparison stats (only include Published results to keep averages accurate)
+      const allResults = await Result.find({ exam: result.exam._id, status: 'Published', organizationId: req.user.organizationId });
+      const scores = allResults.map((r) => r.percentage);
+      const average = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+      const highest = scores.length ? Math.max(...scores) : 0;
+
+      responseJSON.cohortStats = {
+        average,
+        highest,
+        totalStudents: scores.length
+      };
+    }
 
     return res
       .status(200)
@@ -330,7 +390,7 @@ export const getResultById = async (req, res, next) => {
 export const getAdminResults = async (req, res, next) => {
   try {
     const { examId } = req.query;
-    const filter = {};
+    const filter = { organizationId: req.user.organizationId };
     if (examId) filter.exam = examId;
 
     const results = await Result.find(filter)
@@ -352,11 +412,11 @@ export const getAdminResults = async (req, res, next) => {
 
 export const getDashboardStats = async (req, res, next) => {
   try {
-    const totalStudents = await User.countDocuments({ role: ROLES.STUDENT });
-    const totalExams = await Exam.countDocuments();
+    const totalStudents = await User.countDocuments({ role: ROLES.STUDENT, organizationId: req.user.organizationId });
+    const totalExams = await Exam.countDocuments({ organizationId: req.user.organizationId });
     
-    // Average score across all submissions
-    const results = await Result.find();
+    // Average score across all submissions in this organization
+    const results = await Result.find({ organizationId: req.user.organizationId });
     const totalScores = results.reduce((sum, r) => sum + r.percentage, 0);
     const averageScore = results.length ? Math.round(totalScores / results.length) : 0;
     
@@ -373,9 +433,9 @@ export const getDashboardStats = async (req, res, next) => {
     });
 
     // Recent activities feed
-    const recentStudents = await User.find({ role: ROLES.STUDENT }).sort({ createdAt: -1 }).limit(5);
-    const recentExams = await Exam.find().sort({ createdAt: -1 }).limit(5);
-    const recentSubmissions = await Result.find()
+    const recentStudents = await User.find({ role: ROLES.STUDENT, organizationId: req.user.organizationId }).sort({ createdAt: -1 }).limit(5);
+    const recentExams = await Exam.find({ organizationId: req.user.organizationId }).sort({ createdAt: -1 }).limit(5);
+    const recentSubmissions = await Result.find({ organizationId: req.user.organizationId })
       .populate('student', 'fullName')
       .populate('exam', 'title')
       .sort({ createdAt: -1 })
@@ -425,6 +485,183 @@ export const getDashboardStats = async (req, res, next) => {
         'Dashboard analytics aggregated'
       )
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPendingResults = async (req, res, next) => {
+  try {
+    const results = await Result.find({
+      status: 'Pending',
+      organizationId: req.user.organizationId
+    })
+      .populate('student', 'fullName email')
+      .populate('exam', 'title totalMarks')
+      .sort({ createdAt: -1 });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, results, 'Pending results retrieved successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const approveResult = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await Result.findOne({ _id: id, organizationId: req.user.organizationId }).populate('exam');
+    if (!result) {
+      throw new ApiError(404, 'Result record not found');
+    }
+
+    if (result.status !== 'Pending') {
+      throw new ApiError(400, 'Result is already reviewed');
+    }
+
+    const exam = result.exam;
+
+    // Recalculate aggregates from questionBreakdown
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let skippedCount = 0;
+    let obtainedMarks = 0;
+
+    result.questionBreakdown.forEach((item) => {
+      if (item.status === 'skipped' || item.status === 'not_answered' || (!item.studentAnswer && item.studentAnswer !== 0)) {
+        skippedCount++;
+      } else if (item.isCorrect) {
+        correctCount++;
+        obtainedMarks += item.marksObtained || 0;
+      } else {
+        incorrectCount++;
+        obtainedMarks += item.marksObtained || 0; // negative or 0
+      }
+    });
+
+    obtainedMarks = Math.max(0, obtainedMarks);
+    const totalMarks = exam.totalMarks || result.totalMarks || 1;
+    const percentage = Math.round((obtainedMarks / totalMarks) * 100);
+    const passed = percentage >= exam.passingMarks;
+
+    // Update Result details
+    result.correctAnswers = correctCount;
+    result.incorrectAnswers = incorrectCount;
+    result.skippedQuestions = skippedCount;
+    result.obtainedMarks = obtainedMarks;
+    result.percentage = percentage;
+    result.passed = passed;
+    result.status = 'Published';
+    result.reviewedBy = req.user._id;
+    result.reviewedAt = new Date();
+    result.publishedAt = new Date();
+
+    const subjectWiseMap = {};
+    const topicWiseMap = {};
+
+    await result.populate('questionBreakdown.question');
+
+    result.questionBreakdown.forEach((item) => {
+      const q = item.question;
+      if (!q) return;
+      
+      const category = q.category || 'General';
+      const topics = q.topics || ['Unassigned'];
+      
+      const examQ = exam.questions.find(eq => eq.question.toString() === q._id.toString());
+      const qWeight = examQ ? examQ.marks : (item.marksObtained || 1);
+
+      if (!subjectWiseMap[category]) {
+        subjectWiseMap[category] = { total: 0, obtained: 0 };
+      }
+      subjectWiseMap[category].total += qWeight;
+      subjectWiseMap[category].obtained += Math.max(0, item.marksObtained || 0);
+
+      topics.forEach((topic) => {
+        if (!topicWiseMap[topic]) {
+          topicWiseMap[topic] = { total: 0, obtained: 0 };
+        }
+        topicWiseMap[topic].total += qWeight;
+        topicWiseMap[topic].obtained += Math.max(0, item.marksObtained || 0);
+      });
+    });
+
+    result.subjectWise = Object.keys(subjectWiseMap).map((subj) => ({
+      subject: subj,
+      total: subjectWiseMap[subj].total,
+      obtained: subjectWiseMap[subj].obtained,
+      percentage: Math.round((subjectWiseMap[subj].obtained / subjectWiseMap[subj].total) * 100)
+    }));
+
+    result.topicWise = Object.keys(topicWiseMap).map((topic) => ({
+      topic,
+      total: topicWiseMap[topic].total,
+      obtained: topicWiseMap[topic].obtained,
+      percentage: Math.round((topicWiseMap[topic].obtained / topicWiseMap[topic].total) * 100)
+    }));
+
+    await result.save();
+
+    // Sync back to ExamResponse model
+    const response = await ExamResponse.findById(result.response);
+    if (response) {
+      response.obtainedMarks = obtainedMarks;
+      response.percentage = percentage;
+      response.passed = passed;
+      response.answers.forEach((ans) => {
+        const item = result.questionBreakdown.find(qb => qb.question && qb.question._id.toString() === ans.question.toString());
+        if (item) {
+          ans.isCorrect = item.isCorrect;
+          ans.marksObtained = item.marksObtained;
+        }
+      });
+      response.markModified('answers');
+      await response.save();
+    }
+
+    // Recalculate exam average score
+    const allPublishedResponses = await ExamResponse.find({ exam: exam._id, status: 'submitted', percentage: { $gt: 0 } });
+    if (allPublishedResponses.length > 0) {
+      const totalPercentageSum = allPublishedResponses.reduce((sum, r) => sum + r.percentage, 0);
+      exam.averageScore = Math.round(totalPercentageSum / allPublishedResponses.length);
+      await exam.save();
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, result, 'Result approved and published successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rejectResult = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await Result.findOne({ _id: id, organizationId: req.user.organizationId });
+    if (!result) {
+      throw new ApiError(404, 'Result record not found');
+    }
+
+    if (result.status !== 'Pending') {
+      throw new ApiError(400, 'Result is already reviewed');
+    }
+
+    result.status = 'Rejected';
+    result.reviewedBy = req.user._id;
+    result.reviewedAt = new Date();
+    await result.save();
+
+    const response = await ExamResponse.findById(result.response);
+    if (response) {
+      response.status = 'terminated';
+      await response.save();
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, result, 'Result submission rejected successfully'));
   } catch (error) {
     next(error);
   }
