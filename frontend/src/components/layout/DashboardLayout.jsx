@@ -1,15 +1,49 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Sun, Moon, Bell, Menu } from 'lucide-react';
+import { Sun, Moon, Bell, Menu, ExternalLink } from 'lucide-react';
+import api from '../../services/api';
 
 const DashboardLayout = ({ children, requiredRole }) => {
   const { user, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const fetchNotifications = async () => {
+    if (user?.role === 'admin' || user?.role === 'super_admin') {
+      try {
+        const response = await api.get('/trial-requests');
+        const pending = response.data.data.filter(r => r.status === 'Pending');
+        setNotifications(pending);
+      } catch (err) {
+        // ignore
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 20000); // query every 20s
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -78,9 +112,98 @@ const DashboardLayout = ({ children, requiredRole }) => {
             </button>
 
             {/* Notification Alert Trigger */}
-            <div className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-darkMuted dark:hover:bg-slate-800 transition-colors cursor-pointer">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-brand-red animate-pulse" />
+            <div className="relative flex items-center" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-darkMuted dark:hover:bg-slate-800 transition-colors focus:outline-none"
+              >
+                <Bell size={18} />
+                {notifications.length > 0 && (
+                  <span className="absolute top-0.5 right-0.5 flex h-4.5 w-4.5 min-w-[18px] items-center justify-center rounded-full bg-brand-red text-[8px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-darkSurface animate-pulse px-1">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-80 origin-top-right rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-darkSurface focus:outline-none z-50 overflow-hidden"
+                    style={{ top: '100%' }}
+                  >
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-darkBg/30 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-800 dark:text-white uppercase tracking-wider">
+                        Alert Notifications
+                      </span>
+                      {notifications.length > 0 && (
+                        <span className="text-[9px] font-bold bg-amber-500/10 text-amber-500 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                          {notifications.length} Pending
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Content List */}
+                    <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/40">
+                      {notifications.length > 0 ? (
+                        notifications.slice(0, 5).map((notif) => (
+                          <div
+                            key={notif._id}
+                            onClick={() => {
+                              setDropdownOpen(false);
+                              navigate('/admin/trial-inquiries');
+                            }}
+                            className="px-4 py-3 hover:bg-slate-50/80 dark:hover:bg-darkBg/40 cursor-pointer transition-colors space-y-1"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                                {notif.fullName}
+                              </span>
+                              <span className="text-[8px] text-slate-400 font-mono">
+                                {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 dark:text-darkMuted font-semibold">
+                              {notif.subject} trial request
+                            </p>
+                            <p className="text-[10px] text-slate-400 dark:text-darkMuted truncate max-w-[260px]">
+                              {notif.message}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-8 text-center px-4 space-y-2">
+                          <div className="h-8 w-8 rounded-full bg-slate-55 dark:bg-slate-850 flex items-center justify-center text-slate-400">
+                            <Bell size={14} />
+                          </div>
+                          <p className="text-[11px] font-medium text-slate-550 dark:text-darkMuted">
+                            No pending trial inquiries
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                      <div 
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          navigate('/admin/trial-inquiries');
+                        }}
+                        className="px-4 py-2.5 text-center text-[10px] font-bold text-brand-blue dark:text-brand-blueLight border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-darkBg/20 hover:bg-slate-100 dark:hover:bg-slate-800/30 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <span>View All Inquiries</span>
+                        <ExternalLink size={10} />
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <hr className="h-6 border-l border-slate-200 dark:border-slate-800" />
