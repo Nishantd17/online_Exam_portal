@@ -1,4 +1,4 @@
-import { useId, useCallback } from 'react';
+import { useId, useCallback, useState, useEffect } from 'react';
 import Particles, { ParticlesProvider } from '@tsparticles/react';
 import { loadSlim } from '@tsparticles/slim';
 
@@ -52,10 +52,24 @@ const particlesOptions = {
 
 const ParticleBackground = ({ className = '' }) => {
   const id = useId();
+  const [isMobile, setIsMobile] = useState(true); // default to true for mobile-first safety
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const particlesInit = useCallback(async (engine) => {
     await loadSlim(engine);
   }, []);
+
+  if (isMobile) {
+    return null;
+  }
 
   return (
     <ParticlesProvider init={particlesInit}>
