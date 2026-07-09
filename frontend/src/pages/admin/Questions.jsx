@@ -11,113 +11,172 @@ import toast from 'react-hot-toast';
 
 const parseBulkQuestions = (rawText) => {
   const text = rawText.replace(/\r\n/g, '\n');
-  const blocks = text.split(/\n\s*\n+/);
-  const parsed = [];
+  const lines = text.split('\n').map(l => l.trim());
+  
+  const questions = [];
+  let currentQuestion = null;
 
-  blocks.forEach((block) => {
-    const trimmed = block.trim();
-    if (!trimmed) return;
+  // Matches start of a question: Q1. or 1. or Question 2: or 2)
+  const questionStartRegex = /^(?:Q(?:uestion)?\s*)?(\d+)[\.\:\)\-\]]\s*(.*)/i;
+  // Matches A) Option or a. Option or 1) Option
+  const optionRegex = /^(?:([A-Za-z]|\d+))[\.\)\-\]]\s*(.*)/;
+  // Matches true/false keywords
+  const tfRegex = /^(true|false)$/i;
 
-    const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length === 0) return;
+  lines.forEach((line) => {
+    if (!line) return; // ignore empty lines
 
-    let questionText = lines[0];
-    const markerMatch = questionText.match(/^(?:Q|Question\s*)?\d+[\.\:\)\-]\s*/i);
-    if (markerMatch) {
-      questionText = questionText.substring(markerMatch[0].length);
+    const qMatch = line.match(questionStartRegex);
+    if (qMatch) {
+      if (currentQuestion) {
+        questions.push(currentQuestion);
+      }
+      
+      currentQuestion = {
+        text: qMatch[2].trim(),
+        rawLines: [line],
+        options: [],
+        type: 'subjective',
+        difficulty: 'medium',
+        category: 'General',
+        defaultMarks: 5,
+        explanation: ''
+      };
+      return;
     }
 
-    let isCoding = false;
-    let type = 'subjective';
+    if (!currentQuestion) {
+      // Create a default question if there's text before any question numbering starts
+      currentQuestion = {
+        text: line,
+        rawLines: [line],
+        options: [],
+        type: 'subjective',
+        difficulty: 'medium',
+        category: 'General',
+        defaultMarks: 5,
+        explanation: ''
+      };
+      return;
+    }
+
+    currentQuestion.rawLines.push(line);
+  });
+
+  if (currentQuestion) {
+    questions.push(currentQuestion);
+  }
+
+  // Parse lines of each question block
+  const parsedQuestions = questions.map((q) => {
+    const rawLines = q.rawLines;
+    let qText = q.text;
     let optionsList = [];
-    let correctAnswer = '';
-    let codingDetails = { language: 'javascript', starterCode: '', solutionCode: '', testCases: [] };
-    let marks = 5;
+    let isCoding = false;
+    let codeLines = [];
+    let inCodeBlock = false;
 
-    if (trimmed.includes('```') || trimmed.toLowerCase().includes('function ') || trimmed.toLowerCase().includes('def ') || trimmed.toLowerCase().includes('return ')) {
-      isCoding = true;
-      type = 'coding';
-    }
+    for (let i = 1; i < rawLines.length; i++) {
+      const line = rawLines[i];
 
-    if (isCoding) {
-      const codeFenceMatches = trimmed.match(/```[a-z]*([\s\S]*?)```/i);
-      let extractedCode = '';
-      if (codeFenceMatches && codeFenceMatches[1]) {
-        extractedCode = codeFenceMatches[1].trim();
-      } else {
-        extractedCode = lines.slice(1).join('\n');
+      if (line.startsWith('```')) {
+        isCoding = true;
+        inCodeBlock = !inCodeBlock;
+        continue;
       }
 
+      if (inCodeBlock) {
+        codeLines.push(line);
+        continue;
+      }
+
+      const optMatch = line.match(optionRegex);
+      const isTF = tfRegex.test(line);
+
+      if (optMatch) {
+        let optVal = optMatch[2].trim();
+        let isCorrect = false;
+        if (optVal.endsWith('*')) {
+          isCorrect = true;
+          optVal = optVal.slice(0, -1).trim();
+        } else if (line.toLowerCase().includes('(correct)') || optVal.toLowerCase().includes('(correct)')) {
+          isCorrect = true;
+          optVal = optVal.replace(/\(correct\)/i, '').trim();
+        }
+        optionsList.push({
+          text: optVal,
+          isCorrect,
+          label: optMatch[1]
+        });
+      } else if (isTF) {
+        let isCorrect = false;
+        let optVal = line;
+        if (line.endsWith('*')) {
+          isCorrect = true;
+          optVal = line.slice(0, -1).trim();
+        } else if (line.toLowerCase().includes('(correct)')) {
+          isCorrect = true;
+          optVal = line.replace(/\(correct\)/i, '').trim();
+        }
+        optionsList.push({
+          text: optVal,
+          isCorrect,
+          label: optVal.toUpperCase()
+        });
+      } else {
+        if (optionsList.length === 0 && !isCoding) {
+          qText += '\n' + line;
+        } else if (isCoding) {
+          codeLines.push(line);
+        }
+      }
+    }
+
+    let finalType = 'subjective';
+    let correctAnswer = undefined;
+    let codingDetails = undefined;
+
+    const fullRawText = rawLines.join('\n');
+    if (isCoding || fullRawText.includes('```') || fullRawText.toLowerCase().includes('function ') || fullRawText.toLowerCase().includes('def ') || fullRawText.toLowerCase().includes('return ')) {
+      finalType = 'coding';
       codingDetails = {
-        language: trimmed.toLowerCase().includes('def ') ? 'python' : 'javascript',
-        starterCode: extractedCode,
+        language: fullRawText.toLowerCase().includes('def ') ? 'python' : 'javascript',
+        starterCode: codeLines.join('\n') || '// write code here\n',
         solutionCode: '// Run checks\n',
         testCases: [{ input: '()', expectedOutput: 'true', marks: 5, isHidden: false }]
       };
-    } else {
-      const optionPattern = /^(?:[A-D]|[a-d]|\d+)[\.\)\-\s]\s*(.*)/;
-      const trueFalsePattern = /^(true|false)$/i;
-
-      const remainingLines = lines.slice(1);
-      let optionsFound = [];
-
-      remainingLines.forEach((line) => {
-        const optionMatch = line.match(optionPattern);
-        if (optionMatch) {
-          let optText = optionMatch[1].trim();
-          let isCorrect = false;
-          if (optText.endsWith('*')) {
-            isCorrect = true;
-            optText = optText.slice(0, -1).trim();
-          } else if (line.toLowerCase().includes('(correct)') || optText.toLowerCase().includes('(correct)')) {
-            isCorrect = true;
-            optText = optText.replace(/\(correct\)/i, '').trim();
-          }
-          optionsFound.push({ text: optText, isCorrect });
-        } else if (trueFalsePattern.test(line)) {
-          optionsFound.push({ text: line, isCorrect: false });
-        } else {
-          if (optionsFound.length === 0) {
-            questionText += ' ' + line;
-          }
-        }
-      });
-
-      if (optionsFound.length === 2 && 
-          ((optionsFound[0].text.toLowerCase() === 'true' && optionsFound[1].text.toLowerCase() === 'false') ||
-           (optionsFound[0].text.toLowerCase() === 'false' && optionsFound[1].text.toLowerCase() === 'true'))) {
-        type = 'true_false';
-        const correctOpt = optionsFound.find(o => o.isCorrect);
-        correctAnswer = correctOpt ? (correctOpt.text.toLowerCase() === 'true') : true;
-      } else if (optionsFound.length > 0) {
-        type = 'mcq_single';
-        optionsList = optionsFound.map((opt, i) => ({
-          text: opt.text,
-          isCorrect: opt.isCorrect,
-          order: i
-        }));
-        if (!optionsList.some(o => o.isCorrect)) {
-          optionsList[0].isCorrect = true;
-        }
-      } else {
-        type = 'subjective';
+    } else if (optionsList.length === 2 && 
+               optionsList.some(o => o.text.toLowerCase() === 'true') && 
+               optionsList.some(o => o.text.toLowerCase() === 'false')) {
+      finalType = 'true_false';
+      const correctOpt = optionsList.find(o => o.isCorrect);
+      correctAnswer = correctOpt ? (correctOpt.text.toLowerCase() === 'true') : true;
+    } else if (optionsList.length > 0) {
+      finalType = 'mcq_single';
+      optionsList = optionsList.map((opt, idx) => ({
+        text: opt.text,
+        isCorrect: opt.isCorrect,
+        order: idx
+      }));
+      if (!optionsList.some(o => o.isCorrect)) {
+        optionsList[0].isCorrect = true;
       }
     }
 
-    parsed.push({
-      text: questionText.trim(),
-      type,
-      difficulty: 'medium',
-      category: 'General',
-      defaultMarks: marks,
-      options: optionsList,
-      correctAnswer: type === 'true_false' ? correctAnswer : undefined,
-      codingDetails: type === 'coding' ? codingDetails : undefined,
+    return {
+      text: qText.trim(),
+      type: finalType,
+      difficulty: q.difficulty,
+      category: q.category,
+      defaultMarks: q.defaultMarks,
+      options: finalType === 'mcq_single' ? optionsList : [],
+      correctAnswer: finalType === 'true_false' ? correctAnswer : undefined,
+      codingDetails: finalType === 'coding' ? codingDetails : undefined,
       explanation: ''
-    });
+    };
   });
 
-  return parsed;
+  return parsedQuestions;
 };
 
 const Questions = () => {
