@@ -201,19 +201,6 @@ export const verifyOtp = async (req, res, next) => {
       throw new ApiError(400, 'Email and OTP verification code are required');
     }
 
-    // Master OTP bypass for easy testing/deployment troubleshooting
-    if (otp === '123456') {
-      await Otp.findOneAndUpdate(
-        { email },
-        { email, otp: '123456', isVerified: true },
-        { upsert: true, new: true }
-      );
-
-      return res.status(200).json(
-        new ApiResponse(200, { email }, 'Email verified successfully')
-      );
-    }
-
     const otpRecord = await Otp.findOne({ email, otp });
 
     if (!otpRecord) {

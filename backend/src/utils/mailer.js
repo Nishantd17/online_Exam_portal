@@ -36,7 +36,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     try {
       console.log(`Attempting to send email via SMTP to: ${to}`);
-      const transporter = nodemailer.createTransport({
+      const transporterConfig = {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: parseInt(process.env.SMTP_PORT) || 465,
         secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
@@ -44,7 +44,16 @@ export const sendEmail = async ({ to, subject, html, text }) => {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS
         }
-      });
+      };
+
+      if (transporterConfig.host.includes('gmail.com')) {
+        delete transporterConfig.host;
+        delete transporterConfig.port;
+        delete transporterConfig.secure;
+        transporterConfig.service = 'gmail';
+      }
+
+      const transporter = nodemailer.createTransport(transporterConfig);
 
       const info = await transporter.sendMail({
         from: process.env.EMAIL_FROM || `"${process.env.SMTP_SENDER_NAME || 'ExamPortal'}" <${process.env.SMTP_USER}>`,
