@@ -19,12 +19,21 @@ import toast from 'react-hot-toast';
 
 const Globe3D = lazy(() => import('../../components/effects/Globe3D'));
 
-const GlobeFallback = () => (
-  <div className="flex flex-col items-center justify-center h-full text-center p-4">
-    <div className="animate-spin-slow h-16 w-16 rounded-full border border-dashed border-cyan-500/30 flex items-center justify-center mb-3">
-      <Globe size={24} className="text-cyan-400 animate-pulse" />
+const GlobeFallback = ({ activeToday = 0, passRate = 0 }) => (
+  <div className="flex flex-col items-center justify-center h-full text-center p-6 relative">
+    {/* Animated radar circles */}
+    <div className="absolute h-36 w-36 rounded-full border border-cyan-500/20 animate-ping pointer-events-none" />
+    <div className="absolute h-24 w-24 rounded-full border border-violet-500/10 animate-pulse pointer-events-none" />
+    
+    <div className="animate-spin-slow h-20 w-20 rounded-full border border-dashed border-cyan-500/40 flex items-center justify-center mb-3 bg-cyan-500/5 shadow-[0_0_20px_rgba(0,240,255,0.1)]">
+      <Globe size={28} className="text-cyan-400 animate-pulse" />
     </div>
-    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Analytics Monitor</span>
+    
+    <span className="text-[10px] text-cyan-400 font-mono uppercase tracking-widest animate-pulse font-bold">Scanning Analytics</span>
+    
+    <p className="text-[11px] text-slate-400 max-w-[200px] mt-2 leading-relaxed">
+      Server responding in real-time. Monitoring active exam nodes.
+    </p>
   </div>
 );
 
@@ -166,6 +175,13 @@ const AdminDashboard = () => {
     boxShadow: '0 0 20px rgba(0,240,255,0.15)',
   };
 
+  const hasDistribution = stats?.performanceDistribution?.some(d => d.value > 0);
+  const distributionData = hasDistribution
+    ? stats.performanceDistribution
+    : [
+        { name: 'No Data Available', value: 1, color: 'rgba(148, 163, 184, 0.15)' }
+      ];
+
   return (
     <div className="space-y-8">
 
@@ -272,16 +288,28 @@ const AdminDashboard = () => {
           className="lg:col-span-5"
         >
           <HudPanel title="Live Analytics Globe" color="violet" className="h-full" style={{ minHeight: 280 }}>
-            <div className="h-[250px] w-full">
-              <ErrorBoundary fallback={<GlobeFallback />}>
+            <div className="h-[250px] w-full relative overflow-hidden">
+              <ErrorBoundary fallback={<GlobeFallback activeToday={stats.activeToday} passRate={stats.passRate} />}>
                 <Suspense fallback={
                   <div className="flex items-center justify-center h-full">
                     <div className="animate-spin-slow h-12 w-12 rounded-full" style={{ border: '2px solid rgba(0,240,255,0.2)', borderTop: '2px solid #00f0ff' }} />
                   </div>
                 }>
-                  {showGlobe ? <Globe3D /> : <GlobeFallback />}
+                  {showGlobe ? <Globe3D /> : <GlobeFallback activeToday={stats.activeToday} passRate={stats.passRate} />}
                 </Suspense>
               </ErrorBoundary>
+
+              {/* Floating metrics overlay */}
+              <div className="absolute bottom-3 left-3 right-3 flex justify-between bg-slate-950/85 backdrop-blur-md border border-cyan-500/20 p-2.5 rounded-lg z-10 text-xs shadow-[0_0_15px_rgba(0,240,255,0.05)]">
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">Active Today</p>
+                  <p className="text-xs font-black text-cyan-400 mt-0.5">{stats.activeToday || 0} Submissions</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">Avg. Pass Rate</p>
+                  <p className="text-xs font-black text-emerald-400 mt-0.5">{stats.passRate || 0}%</p>
+                </div>
+              </div>
             </div>
           </HudPanel>
         </motion.div>
@@ -303,18 +331,18 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={stats.performanceDistribution}
+                      data={distributionData}
                       cx="50%" cy="50%"
                       innerRadius={55} outerRadius={80}
-                      paddingAngle={4}
+                      paddingAngle={hasDistribution ? 4 : 0}
                       dataKey="value"
                       strokeWidth={0}
                     >
-                      {stats.performanceDistribution.map((entry, idx) => (
+                      {distributionData.map((entry, idx) => (
                         <Cell key={idx} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={neonTooltipStyle} />
+                    <Tooltip contentStyle={neonTooltipStyle} enabled={hasDistribution} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -323,12 +351,18 @@ const AdminDashboard = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-y-2 mt-2">
-                {stats.performanceDistribution.map((d, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold">
-                    <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: d.color, boxShadow: `0 0 6px ${d.color}` }} />
-                    <span>{d.name}: {d.value}</span>
+                {hasDistribution ? (
+                  stats.performanceDistribution.map((d, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 text-[10px] text-slate-450 font-semibold">
+                      <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: d.color, boxShadow: `0 0 6px ${d.color}` }} />
+                      <span>{d.name}: {d.value}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-2 text-[10px] text-slate-500 font-medium italic">
+                    No exam submissions recorded yet.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </HudPanel>

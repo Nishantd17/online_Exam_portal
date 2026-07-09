@@ -427,6 +427,15 @@ export const getDashboardStats = async (req, res, next) => {
 
     const totalStudents = await User.countDocuments(userQuery);
     const totalExams = await Exam.countDocuments(examQuery);
+
+    // Calculate active results today (last 24 hours)
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+    const activeTodayQuery = {
+      ...resultQuery,
+      createdAt: { $gte: oneDayAgo }
+    };
+    const activeToday = await Result.countDocuments(activeTodayQuery);
     
     // Average score across all submissions
     const results = await Result.find(resultQuery);
@@ -543,6 +552,7 @@ export const getDashboardStats = async (req, res, next) => {
           totalExams,
           averageScore,
           passRate,
+          activeToday,
           performanceDistribution: [
             { name: 'Excellent (90-100%)', value: distribution.excellent, color: '#10B981' },
             { name: 'Good (75-89%)', value: distribution.good, color: '#3B82F6' },
