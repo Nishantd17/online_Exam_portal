@@ -58,23 +58,23 @@ api.interceptors.response.use(
       try {
         const refreshResponse = await axios.post('/api/v1/auth/refresh-token', {}, { withCredentials: true });
         const { accessToken } = refreshResponse.data.data;
-        
+
         sessionStorage.setItem('accessToken', accessToken);
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
         originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
-        
+
         processQueue(null, accessToken);
         isRefreshing = false;
-        
+
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
         isRefreshing = false;
-        
+
         // Clear session and notify login trigger
         sessionStorage.removeItem('accessToken');
         window.dispatchEvent(new Event('auth_session_expired'));
-        
+
         return Promise.reject(refreshError);
       }
     }
