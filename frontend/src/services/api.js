@@ -58,7 +58,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshResponse = await axios.post('/api/v1/auth/refresh-token', {}, { withCredentials: true });
+        const refreshUrl = isLocalhost ? '/api/v1/auth/refresh-token' : 'https://online-exam-portal-nffb.onrender.com/api/v1/auth/refresh-token';
+        const refreshResponse = await axios.post(refreshUrl, {}, { withCredentials: true });
         const { accessToken } = refreshResponse.data.data;
 
         sessionStorage.setItem('accessToken', accessToken);
