@@ -217,13 +217,13 @@ const StudentDashboard = () => {
         <Card className="p-0 overflow-hidden">
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {results.slice(0, 3).map((res) => (
-              <div key={res._id} className="p-5 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all">
+              <div key={res._id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all">
                 <div className="space-y-1">
                   <h4 className="text-xs font-bold text-slate-800 dark:text-white">{res.exam?.title}</h4>
                   <p className="text-[10px] text-slate-400 dark:text-darkMuted">Submitted on {new Date(res.createdAt).toLocaleDateString()}</p>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                  <div className="text-left sm:text-right">
                     <p className="text-xs font-bold text-slate-800 dark:text-white">Score: {res.obtainedMarks}/{res.totalMarks}</p>
                     <p className="text-[10px] text-slate-400 dark:text-darkMuted">Percentage: {res.percentage}%</p>
                   </div>

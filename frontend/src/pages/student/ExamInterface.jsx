@@ -429,7 +429,7 @@ const ExamInterface = () => {
           </div>
 
           {/* Checks status */}
-          <div className="grid grid-cols-3 gap-4 border-y border-slate-100 dark:border-slate-800 py-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-y border-slate-100 dark:border-slate-800 py-5">
             <div className="text-center space-y-2">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Network Connection</span>
               <Badge variant={systemCheck.internet === 'ready' ? 'success' : 'neutral'}>
@@ -557,9 +557,9 @@ const ExamInterface = () => {
       </div>
 
       {/* Main split workarea */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Side: Question Palette (numbered matrix) */}
-        <aside className="w-64 border-r border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#0d112b]/60 dark:backdrop-blur-xl p-4 overflow-y-auto shrink-0 flex flex-col gap-4">
+        <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#0d112b]/60 dark:backdrop-blur-xl p-4 overflow-y-auto shrink-0 flex flex-col gap-4 max-h-48 md:max-h-none">
           <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest block">Question Palette</span>
           
           <div className="grid grid-cols-4 gap-2">

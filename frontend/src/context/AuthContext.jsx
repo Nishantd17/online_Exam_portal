@@ -123,8 +123,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async (idToken) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/google', { idToken });
+      const data = response.data.data;
+      
+      if (!data.isNewUser) {
+        sessionStorage.setItem('accessToken', data.accessToken);
+        setUser(data.user);
+      }
+      return data;
+    } catch (err) {
+      throw err.response?.data || err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signupWithGoogle = async (signupData) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/google/signup', signupData);
+      const { user: loggedInUser, accessToken } = response.data.data;
+      
+      sessionStorage.setItem('accessToken', accessToken);
+      setUser(loggedInUser);
+      return loggedInUser;
+    } catch (err) {
+      throw err.response?.data || err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, setUser, fetchProfile, sendOtp, verifyOtp, forgotPassword, resetPassword }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, setUser, fetchProfile, sendOtp, verifyOtp, forgotPassword, resetPassword, loginWithGoogle, signupWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

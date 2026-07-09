@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import ExamResponse from '../models/ExamResponse.js';
+import Result from '../models/Result.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { ROLES } from '../constants/index.js';
@@ -8,7 +9,11 @@ export const getStudents = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, search = '', status = 'All', sortBy = 'createdAt' } = req.query;
 
-    const query = { role: ROLES.STUDENT, organizationId: req.user.organizationId };
+    const query = {};
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.role = ROLES.STUDENT;
+      query.organizationId = req.user.organizationId;
+    }
 
     if (search) {
       query.$or = [
@@ -33,7 +38,8 @@ export const getStudents = async (req, res, next) => {
     const students = await User.find(query)
       .sort(options.sort)
       .skip(skip)
-      .limit(options.limit);
+      .limit(options.limit)
+      .populate('organizationId');
 
     // Fetch exams taken and average scores for each student
     const studentData = await Promise.all(
@@ -53,7 +59,8 @@ export const getStudents = async (req, res, next) => {
           fullName: student.fullName,
           email: student.email,
           phone: student.phone || 'N/A',
-          organization: student.organization || 'N/A',
+          organization: student.organizationId ? student.organizationId.name : (student.organization || 'N/A'),
+          role: student.role,
           isActive: student.isActive,
           createdAt: student.createdAt,
           examsTaken,
@@ -82,7 +89,7 @@ export const getStudents = async (req, res, next) => {
 
 export const createStudent = async (req, res, next) => {
   try {
-    const { fullName, email, password, phone } = req.body;
+    const { fullName, email, password, phone, role, organizationId } = req.body;
 
     if (!fullName || !email || !password) {
       throw new ApiError(400, 'Full name, email and password are required');
@@ -90,16 +97,19 @@ export const createStudent = async (req, res, next) => {
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      throw new ApiError(409, 'Student with this email already exists');
+      throw new ApiError(409, 'User with this email already exists');
     }
+
+    const targetRole = (req.user.role === ROLES.SUPER_ADMIN && role) ? role : ROLES.STUDENT;
+    const targetOrgId = (req.user.role === ROLES.SUPER_ADMIN && organizationId) ? organizationId : req.user.organizationId;
 
     const student = await User.create({
       fullName,
       email,
       password,
-      role: ROLES.STUDENT,
+      role: targetRole,
       phone,
-      organizationId: req.user.organizationId,
+      organizationId: targetOrgId,
       isVerified: true
     });
 
@@ -107,7 +117,7 @@ export const createStudent = async (req, res, next) => {
 
     return res
       .status(201)
-      .json(new ApiResponse(201, studentResponse, 'Student created successfully'));
+      .json(new ApiResponse(201, studentResponse, 'User created successfully'));
   } catch (error) {
     next(error);
   }
@@ -116,21 +126,33 @@ export const createStudent = async (req, res, next) => {
 export const updateStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { fullName, phone, isActive } = req.body;
+    const { fullName, phone, isActive, role, organizationId } = req.body;
+
+    const filter = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      filter.role = ROLES.STUDENT;
+      filter.organizationId = req.user.organizationId;
+    }
+
+    const updateFields = { fullName, phone, isActive };
+    if (req.user.role === ROLES.SUPER_ADMIN) {
+      if (role) updateFields.role = role;
+      if (organizationId) updateFields.organizationId = organizationId;
+    }
 
     const student = await User.findOneAndUpdate(
-      { _id: id, role: ROLES.STUDENT, organizationId: req.user.organizationId },
-      { $set: { fullName, phone, isActive } },
+      filter,
+      { $set: updateFields },
       { new: true, runValidators: true }
     ).select('-password');
 
     if (!student) {
-      throw new ApiError(404, 'Student not found');
+      throw new ApiError(404, 'User not found');
     }
 
     return res
       .status(200)
-      .json(new ApiResponse(200, student, 'Student updated successfully'));
+      .json(new ApiResponse(200, student, 'User updated successfully'));
   } catch (error) {
     next(error);
   }
@@ -140,18 +162,25 @@ export const deleteStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const student = await User.findOneAndDelete({ _id: id, role: ROLES.STUDENT, organizationId: req.user.organizationId });
-
-    if (!student) {
-      throw new ApiError(404, 'Student not found');
+    const filter = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      filter.role = ROLES.STUDENT;
+      filter.organizationId = req.user.organizationId;
     }
 
-    // Clean up responses
-    await ExamResponse.deleteMany({ student: id, organizationId: req.user.organizationId });
+    const student = await User.findOneAndDelete(filter);
+
+    if (!student) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    // Clean up responses and results
+    await ExamResponse.deleteMany({ student: id });
+    await Result.deleteMany({ student: id });
 
     return res
       .status(200)
-      .json(new ApiResponse(200, {}, 'Student deleted successfully'));
+      .json(new ApiResponse(200, {}, 'User deleted successfully'));
   } catch (error) {
     next(error);
   }

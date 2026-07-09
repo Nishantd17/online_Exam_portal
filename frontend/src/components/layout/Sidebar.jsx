@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const Sidebar = () => {
+const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ const Sidebar = () => {
 
   const adminMenu = [
     { label: 'Dashboard',       path: '/admin/dashboard',        icon: LayoutDashboard, color: '#00f0ff' },
-    { label: 'Students',        path: '/admin/students',         icon: Users,            color: '#8b5cf6' },
+    { label: 'Users (Students)', path: '/admin/students',         icon: Users,            color: '#8b5cf6' },
     { label: 'Exams',           path: '/admin/exams',            icon: BookOpen,         color: '#06b6d4' },
     { label: 'Questions',       path: '/admin/questions',        icon: HelpCircle,       color: '#3b82f6' },
     { label: 'Pending Reviews', path: '/admin/pending-reviews',  icon: ClipboardList,    color: '#f59e0b' },
@@ -34,13 +34,15 @@ const Sidebar = () => {
     { label: 'Profile',   path: '/student/profile',   icon: User,            color: '#ec4899' },
   ];
 
-  const menuItems = user?.role === 'admin' ? adminMenu : studentMenu;
+  const menuItems = (user?.role === 'admin' || user?.role === 'super_admin') ? adminMenu : studentMenu;
 
   return (
     <motion.div
       animate={{ width: collapsed ? 80 : 256 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="h-screen flex flex-col relative z-30 flex-shrink-0"
+      className={`h-screen flex flex-col z-40 flex-shrink-0 transition-transform duration-300 md:translate-x-0 md:static fixed inset-y-0 left-0 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
       style={{
         background: 'linear-gradient(180deg, #050814 0%, #0a0e27 40%, #0d0a1e 100%)',
         borderRight: '1px solid rgba(0,240,255,0.12)',
@@ -60,7 +62,7 @@ const Sidebar = () => {
         className="h-16 flex items-center px-4 flex-shrink-0 relative"
         style={{ borderBottom: '1px solid rgba(0,240,255,0.1)' }}
       >
-        <Link to="/" className="flex items-center gap-3 overflow-hidden">
+        <Link to="/" onClick={() => setMobileOpen && setMobileOpen(false)} className="flex items-center gap-3 overflow-hidden">
           <motion.div
             whileHover={{ rotate: [0, -10, 10, -5, 0] }}
             transition={{ duration: 0.5 }}
@@ -103,6 +105,7 @@ const Sidebar = () => {
             <NavLink
               key={idx}
               to={item.path}
+              onClick={() => setMobileOpen && setMobileOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${
                   isActive ? '' : 'hover:bg-white/[0.04]'
@@ -235,7 +238,7 @@ const Sidebar = () => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setCollapsed((prev) => !prev)}
-        className="absolute -right-3.5 top-[72px] h-7 w-7 rounded-full flex items-center justify-center z-50"
+        className="absolute -right-3.5 top-[72px] h-7 w-7 rounded-full hidden md:flex items-center justify-center z-50"
         style={{
           background: 'linear-gradient(135deg, #0a0e27, #1b1437)',
           border: '1px solid rgba(0,240,255,0.3)',

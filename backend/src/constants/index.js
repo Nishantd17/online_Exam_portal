@@ -1,6 +1,7 @@
 export const ROLES = {
   STUDENT: 'student',
-  ADMIN: 'admin'
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin'
 };
 
 export const EXAM_STATUS = {

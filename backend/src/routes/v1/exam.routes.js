@@ -26,14 +26,14 @@ router.post('/student/:id/violation', restrictTo(ROLES.STUDENT), logViolation);
 
 // Admin Exam Routes
 router.route('/')
-  .get(restrictTo(ROLES.ADMIN), getAdminExams)
-  .post(restrictTo(ROLES.ADMIN), createExam);
+  .get(restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), getAdminExams)
+  .post(restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), createExam);
 
 router.route('/:id')
-  .get(restrictTo(ROLES.ADMIN, ROLES.STUDENT), getExamById)
-  .patch(restrictTo(ROLES.ADMIN), updateExam)
-  .delete(restrictTo(ROLES.ADMIN), deleteExam);
+  .get(restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.STUDENT), getExamById)
+  .patch(restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), updateExam)
+  .delete(restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), deleteExam);
 
-router.post('/:id/duplicate', restrictTo(ROLES.ADMIN), duplicateExam);
+router.post('/:id/duplicate', restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), duplicateExam);
 
 export default router;

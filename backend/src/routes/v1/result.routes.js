@@ -21,11 +21,11 @@ router.post('/student/:id/submit', restrictTo(ROLES.STUDENT), submitExam);
 router.get('/student', restrictTo(ROLES.STUDENT), getStudentResults);
 
 // Admin Analytics Operations
-router.get('/admin', restrictTo(ROLES.ADMIN), getAdminResults);
-router.get('/admin/dashboard-stats', restrictTo(ROLES.ADMIN), getDashboardStats);
-router.get('/admin/pending', restrictTo(ROLES.ADMIN), getPendingResults);
-router.post('/admin/review/:id/approve', restrictTo(ROLES.ADMIN), approveResult);
-router.post('/admin/review/:id/reject', restrictTo(ROLES.ADMIN), rejectResult);
+router.get('/admin', restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), getAdminResults);
+router.get('/admin/dashboard-stats', restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), getDashboardStats);
+router.get('/admin/pending', restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), getPendingResults);
+router.post('/admin/review/:id/approve', restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), approveResult);
+router.post('/admin/review/:id/reject', restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN), rejectResult);
 
 // Shared Report Operations
 router.get('/:id', getResultById);

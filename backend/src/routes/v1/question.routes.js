@@ -13,7 +13,7 @@ import { ROLES } from '../../constants/index.js';
 const router = Router();
 
 router.use(verifyJWT);
-router.use(restrictTo(ROLES.ADMIN));
+router.use(restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN));
 
 router.route('/')
   .get(getQuestions)

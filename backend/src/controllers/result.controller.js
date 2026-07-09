@@ -390,7 +390,10 @@ export const getResultById = async (req, res, next) => {
 export const getAdminResults = async (req, res, next) => {
   try {
     const { examId } = req.query;
-    const filter = { organizationId: req.user.organizationId };
+    const filter = {};
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      filter.organizationId = req.user.organizationId;
+    }
     if (examId) filter.exam = examId;
 
     const results = await Result.find(filter)
@@ -412,11 +415,21 @@ export const getAdminResults = async (req, res, next) => {
 
 export const getDashboardStats = async (req, res, next) => {
   try {
-    const totalStudents = await User.countDocuments({ role: ROLES.STUDENT, organizationId: req.user.organizationId });
-    const totalExams = await Exam.countDocuments({ organizationId: req.user.organizationId });
+    const userQuery = { role: ROLES.STUDENT };
+    const examQuery = {};
+    const resultQuery = {};
     
-    // Average score across all submissions in this organization
-    const results = await Result.find({ organizationId: req.user.organizationId });
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      userQuery.organizationId = req.user.organizationId;
+      examQuery.organizationId = req.user.organizationId;
+      resultQuery.organizationId = req.user.organizationId;
+    }
+
+    const totalStudents = await User.countDocuments(userQuery);
+    const totalExams = await Exam.countDocuments(examQuery);
+    
+    // Average score across all submissions
+    const results = await Result.find(resultQuery);
     const totalScores = results.reduce((sum, r) => sum + r.percentage, 0);
     const averageScore = results.length ? Math.round(totalScores / results.length) : 0;
     
@@ -433,9 +446,19 @@ export const getDashboardStats = async (req, res, next) => {
     });
 
     // Recent activities feed
-    const recentStudents = await User.find({ role: ROLES.STUDENT, organizationId: req.user.organizationId }).sort({ createdAt: -1 }).limit(5);
-    const recentExams = await Exam.find({ organizationId: req.user.organizationId }).sort({ createdAt: -1 }).limit(5);
-    const recentSubmissions = await Result.find({ organizationId: req.user.organizationId })
+    const studentRecentQuery = { role: ROLES.STUDENT };
+    const examRecentQuery = {};
+    const subRecentQuery = {};
+    
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      studentRecentQuery.organizationId = req.user.organizationId;
+      examRecentQuery.organizationId = req.user.organizationId;
+      subRecentQuery.organizationId = req.user.organizationId;
+    }
+
+    const recentStudents = await User.find(studentRecentQuery).sort({ createdAt: -1 }).limit(5);
+    const recentExams = await Exam.find(examRecentQuery).sort({ createdAt: -1 }).limit(5);
+    const recentSubmissions = await Result.find(subRecentQuery)
       .populate('student', 'fullName')
       .populate('exam', 'title')
       .sort({ createdAt: -1 })
@@ -492,10 +515,12 @@ export const getDashboardStats = async (req, res, next) => {
 
 export const getPendingResults = async (req, res, next) => {
   try {
-    const results = await Result.find({
-      status: 'Pending',
-      organizationId: req.user.organizationId
-    })
+    const query = { status: 'Pending' };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
+
+    const results = await Result.find(query)
       .populate('student', 'fullName email')
       .populate('exam', 'title totalMarks')
       .sort({ createdAt: -1 });
@@ -511,7 +536,12 @@ export const getPendingResults = async (req, res, next) => {
 export const approveResult = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await Result.findOne({ _id: id, organizationId: req.user.organizationId }).populate('exam');
+    const query = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
+
+    const result = await Result.findOne(query).populate('exam');
     if (!result) {
       throw new ApiError(404, 'Result record not found');
     }
@@ -639,7 +669,12 @@ export const approveResult = async (req, res, next) => {
 export const rejectResult = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await Result.findOne({ _id: id, organizationId: req.user.organizationId });
+    const query = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
+
+    const result = await Result.findOne(query);
     if (!result) {
       throw new ApiError(404, 'Result record not found');
     }

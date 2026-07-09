@@ -8,8 +8,10 @@ import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const Students = () => {
+  const { user: currentUser } = useAuth();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -32,6 +34,7 @@ const Students = () => {
   const [formPassword, setFormPassword] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formOrg, setFormOrg] = useState('');
+  const [formRole, setFormRole] = useState('student');
 
   // Bulk CSV file states
   const [csvPreview, setCsvPreview] = useState([]);
@@ -67,6 +70,7 @@ const Students = () => {
     setFormPassword('Pass123!');
     setFormPhone('');
     setFormOrg('');
+    setFormRole('student');
     setAddEditOpen(true);
   };
 
@@ -77,6 +81,7 @@ const Students = () => {
     setFormPassword(''); // blank means do not update password
     setFormPhone(student.phone);
     setFormOrg(student.organization);
+    setFormRole(student.role || 'student');
     setAddEditOpen(true);
   };
 
@@ -88,9 +93,10 @@ const Students = () => {
         await api.patch(`/admin/students/${editingStudent._id}`, {
           fullName: formName,
           phone: formPhone,
-          organization: formOrg
+          organization: formOrg,
+          role: formRole
         });
-        toast.success('Student details updated successfully.');
+        toast.success('User details updated successfully.');
       } else {
         // Create new
         await api.post('/admin/students', {
@@ -98,14 +104,15 @@ const Students = () => {
           email: formEmail,
           password: formPassword,
           phone: formPhone,
-          organization: formOrg
+          organization: formOrg,
+          role: formRole
         });
-        toast.success('Student created successfully.');
+        toast.success('User created successfully.');
       }
       setAddEditOpen(false);
       fetchStudents();
     } catch (err) {
-      toast.error(err.message || 'Error occurred while saving student.');
+      toast.error(err.message || 'Error occurred while saving user.');
     }
   };
 
@@ -180,6 +187,7 @@ const Students = () => {
   const tableHeaders = [
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
+    ...(currentUser?.role === 'super_admin' ? [{ key: 'role', label: 'Role' }] : []),
     { key: 'org', label: 'Organization' },
     { key: 'exams', label: 'Exams Taken' },
     { key: 'avg', label: 'Avg Score' },
@@ -192,8 +200,8 @@ const Students = () => {
       {/* Header bar controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Student Management</h1>
-          <p className="text-xs text-slate-450 dark:text-darkMuted">Create student profile configurations or import rosters in bulk.</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">User / Student Management</h1>
+          <p className="text-xs text-slate-450 dark:text-darkMuted">View, search, edit, or delete registered users and students in your organization.</p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -204,7 +212,7 @@ const Students = () => {
             <Download size={14} className="mr-1" /> Export CSV
           </Button>
           <Button size="sm" onClick={handleOpenAdd}>
-            <Plus size={14} className="mr-1" /> Add Student
+            <Plus size={14} className="mr-1" /> Add User
           </Button>
         </div>
       </div>
@@ -229,7 +237,7 @@ const Students = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="bg-white dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-blue"
           >
-            <option value="All">All Students</option>
+            <option value="All">All Users</option>
             <option value="Active">Active Only</option>
           </select>
         </div>
@@ -240,7 +248,7 @@ const Students = () => {
         headers={tableHeaders}
         data={students}
         loading={loading}
-        emptyMessage="No students match the criteria."
+        emptyMessage="No users match the criteria."
         renderRow={(student) => (
           <>
             <td className="px-6 py-4 flex items-center gap-3">
@@ -250,6 +258,13 @@ const Students = () => {
               <span className="font-semibold text-slate-900 dark:text-darkText">{student.fullName}</span>
             </td>
             <td className="px-6 py-4">{student.email}</td>
+            {currentUser?.role === 'super_admin' && (
+              <td className="px-6 py-4">
+                <Badge variant={student.role === 'admin' ? 'warning' : 'info'}>
+                  {student.role === 'admin' ? 'Teacher' : 'Student'}
+                </Badge>
+              </td>
+            )}
             <td className="px-6 py-4">{student.organization}</td>
             <td className="px-6 py-4 font-bold text-slate-800 dark:text-darkText">{student.examsTaken}</td>
             <td className="px-6 py-4 font-semibold text-slate-900 dark:text-darkText">{student.averageScore}%</td>
@@ -293,12 +308,12 @@ const Students = () => {
       <Modal
         isOpen={addEditOpen}
         onClose={() => setAddEditOpen(false)}
-        title={editingStudent ? 'Edit Student Details' : 'Register New Student'}
+        title={editingStudent ? (currentUser?.role === 'super_admin' ? 'Edit User Details' : 'Edit Student Details') : (currentUser?.role === 'super_admin' ? 'Register New User' : 'Register New Student')}
         size="drawer"
       >
         <form onSubmit={handleSaveStudent} className="space-y-4">
           <Input
-            label="Student Full Name"
+            label={currentUser?.role === 'super_admin' ? 'Full Name' : 'Student Full Name'}
             id="modalName"
             value={formName}
             onChange={(e) => setFormName(e.target.value)}
@@ -325,6 +340,20 @@ const Students = () => {
             />
           )}
 
+          {currentUser?.role === 'super_admin' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-darkMuted">System Role</label>
+              <select
+                value={formRole}
+                onChange={(e) => setFormRole(e.target.value)}
+                className="w-full bg-white dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-brand-blue"
+              >
+                <option value="student">Student</option>
+                <option value="admin">Teacher (Admin)</option>
+              </select>
+            </div>
+          )}
+
           <Input
             label="Institution / Group Name"
             id="modalOrg"
@@ -341,7 +370,7 @@ const Students = () => {
           />
 
           <Button type="submit" className="w-full mt-4">
-            Save Student Configuration
+            Save User Configuration
           </Button>
         </form>
       </Modal>

@@ -7,6 +7,10 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/tokenUtils.js';
 import { sendEmail } from '../utils/mailer.js';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 
 const cookieOptions = {
   httpOnly: true,
@@ -442,3 +446,192 @@ export const resetPassword = async (req, res, next) => {
     next(error);
   }
 };
+
+const verifyGoogleToken = async (idToken) => {
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    return ticket.getPayload();
+  } catch (error) {
+    console.error('Google token verification failed:', error);
+    throw new ApiError(400, 'Invalid Google ID token');
+  }
+};
+
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      throw new ApiError(400, 'Google ID token is required');
+    }
+
+    const payload = await verifyGoogleToken(idToken);
+    const { email, name, picture, email_verified } = payload;
+
+    if (!email_verified) {
+      throw new ApiError(400, 'Your Google email is not verified');
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ email });
+
+    if (user) {
+      // User exists -> Log them in!
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      user.refreshTokens.push({
+        token: refreshToken,
+        expiresAt,
+        userAgent: req.headers['user-agent'],
+        ip: req.ip
+      });
+
+      user.lastLogin = new Date();
+      await user.save();
+
+      const userWithoutPassword = await User.findById(user._id).select('-password').populate('organizationId');
+
+      return res
+        .status(200)
+        .cookie('refreshToken', refreshToken, { ...cookieOptions, expires: expiresAt })
+        .json(
+          new ApiResponse(
+            200,
+            { user: userWithoutPassword, accessToken, isNewUser: false },
+            'Logged in with Google successfully'
+          )
+        );
+    } else {
+      // User does not exist -> Tell frontend to complete signup details
+      return res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            isNewUser: true,
+            email,
+            fullName: name,
+            avatar: picture
+          },
+          'Google authentication successful. Please complete your registration.'
+        )
+      );
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const googleSignup = async (req, res, next) => {
+  try {
+    const { idToken, role, organization, joinCode, phone } = req.body;
+
+    if (!idToken) {
+      throw new ApiError(400, 'Google ID token is required');
+    }
+
+    if (!role) {
+      throw new ApiError(400, 'Role is required');
+    }
+
+    const payload = await verifyGoogleToken(idToken);
+    const { email, name, picture, email_verified } = payload;
+
+    if (!email_verified) {
+      throw new ApiError(400, 'Your Google email is not verified');
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      throw new ApiError(409, 'User with this email already exists');
+    }
+
+    let organizationId;
+    let orgDoc;
+
+    if (role === 'admin') {
+      if (!organization) {
+        throw new ApiError(400, 'Organization / Institution Name is required for Administrators');
+      }
+      const orgId = await generateUniqueOrgId();
+      const code = await generateUniqueJoinCode();
+      orgDoc = await Organization.create({
+        name: organization.trim(),
+        orgId,
+        joinCode: code,
+        createdBy: new mongoose.Types.ObjectId() // temporary ID, updated below
+      });
+      organizationId = orgDoc._id;
+    } else {
+      // student
+      if (!joinCode) {
+        throw new ApiError(400, 'Organization Join Code is required for Students');
+      }
+      const matchedOrg = await Organization.findOne({ joinCode: joinCode.trim().toUpperCase() });
+      if (!matchedOrg) {
+        throw new ApiError(400, 'Invalid Organization Code');
+      }
+      organizationId = matchedOrg._id;
+    }
+
+    // Generate a secure random password to satisfy schema requirement
+    const randomPassword = crypto.randomBytes(24).toString('hex') + 'A1!'; // ensure complexity requirements
+
+    // Creating user
+    const user = await User.create({
+      fullName: name,
+      email,
+      password: randomPassword,
+      role: role || 'student',
+      organizationId,
+      phone,
+      avatar: picture || '',
+      isVerified: true
+    });
+
+    // If Admin, update the Organization's createdBy back to actual Admin user ID
+    if (role === 'admin' && orgDoc) {
+      orgDoc.createdBy = user._id;
+      await orgDoc.save();
+    }
+
+    // Log the user in immediately
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    user.refreshTokens.push({
+      token: refreshToken,
+      expiresAt,
+      userAgent: req.headers['user-agent'],
+      ip: req.ip
+    });
+
+    user.lastLogin = new Date();
+    await user.save();
+
+    const userWithoutPassword = await User.findById(user._id).select('-password').populate('organizationId');
+
+    return res
+      .status(201)
+      .cookie('refreshToken', refreshToken, { ...cookieOptions, expires: expiresAt })
+      .json(
+        new ApiResponse(
+          201,
+          { user: userWithoutPassword, accessToken },
+          'User registered and logged in with Google successfully'
+        )
+      );
+  } catch (error) {
+    next(error);
+  }
+};
+

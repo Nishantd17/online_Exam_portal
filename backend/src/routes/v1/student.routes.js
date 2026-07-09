@@ -14,7 +14,7 @@ const router = Router();
 
 // Secure all endpoints under student administration
 router.use(verifyJWT);
-router.use(restrictTo(ROLES.ADMIN));
+router.use(restrictTo(ROLES.ADMIN, ROLES.SUPER_ADMIN));
 
 router.route('/')
   .get(getStudents)

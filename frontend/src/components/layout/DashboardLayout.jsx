@@ -1,21 +1,26 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Sun, Moon, Bell } from 'lucide-react';
+import { Sun, Moon, Bell, Menu } from 'lucide-react';
 
 const DashboardLayout = ({ children, requiredRole }) => {
   const { user, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
         navigate('/login');
-      } else if (requiredRole && user.role !== requiredRole) {
-        navigate(user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard');
+      } else if (requiredRole) {
+        const isAuthorized = user.role === requiredRole || 
+                             (requiredRole === 'admin' && user.role === 'super_admin');
+        if (!isAuthorized) {
+          navigate((user.role === 'admin' || user.role === 'super_admin') ? '/admin/dashboard' : '/student/dashboard');
+        }
       }
     }
   }, [user, loading, requiredRole, navigate]);
@@ -36,15 +41,31 @@ const DashboardLayout = ({ children, requiredRole }) => {
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-slate-50/50 dark:bg-darkBg">
+      {/* Mobile Drawer Overlay Backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-30 md:hidden transition-opacity duration-300"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <Sidebar />
+      <Sidebar mobileOpen={mobileSidebarOpen} setMobileOpen={setMobileSidebarOpen} />
 
       {/* Main Section */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 border-b border-slate-200 bg-white dark:bg-darkSurface dark:border-slate-800 flex items-center justify-between px-8 shrink-0 z-20">
-          <div className="text-xs font-semibold text-slate-400 dark:text-darkMuted uppercase tracking-wider">
-            Portal / {user.role} / Overview
+        <header className="h-16 border-b border-slate-200 bg-white dark:bg-darkSurface dark:border-slate-800 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-darkMuted dark:hover:bg-slate-800 transition-colors md:hidden mr-1"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="text-xs font-semibold text-slate-400 dark:text-darkMuted uppercase tracking-wider">
+              Portal / {user.role} / Overview
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -75,7 +96,7 @@ const DashboardLayout = ({ children, requiredRole }) => {
         </header>
 
         {/* Dynamic Inner Content Pane */}
-        <main className="flex-1 overflow-y-auto px-8 py-8 relative">
+        <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8 relative">
           {children}
         </main>
       </div>

@@ -7,7 +7,9 @@ import {
   forgotPassword,
   resetPassword,
   sendOtp,
-  verifyOtp
+  verifyOtp,
+  googleAuth,
+  googleSignup
 } from '../../controllers/auth.controller.js';
 import { rateLimiter } from '../../middleware/rateLimiter.js';
 
@@ -33,5 +35,7 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 router.post('/send-otp', sendOtpLimiter, sendOtp);
 router.post('/verify-otp', verifyOtpLimiter, verifyOtp);
+router.post('/google', googleAuth);
+router.post('/google/signup', googleSignup);
 
 export default router;

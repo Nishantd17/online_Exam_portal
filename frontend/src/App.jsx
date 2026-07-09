@@ -41,8 +41,15 @@ const RouteGuard = ({ children, role }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (role && user.role !== role) {
-    return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard'} replace />;
+  if (role) {
+    const rolesArray = Array.isArray(role) ? [...role] : [role];
+    if (rolesArray.includes('admin') && !rolesArray.includes('super_admin')) {
+      rolesArray.push('super_admin');
+    }
+    
+    if (!rolesArray.includes(user.role)) {
+      return <Navigate to={user.role === 'student' ? '/student/dashboard' : '/admin/dashboard'} replace />;
+    }
   }
 
   return children;

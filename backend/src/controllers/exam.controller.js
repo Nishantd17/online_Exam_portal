@@ -4,7 +4,7 @@ import ExamResponse from '../models/ExamResponse.js';
 import User from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
-import { EXAM_STATUS } from '../constants/index.js';
+import { EXAM_STATUS, ROLES } from '../constants/index.js';
 
 // --- ADMIN CONTROLLERS ---
 
@@ -38,7 +38,10 @@ export const createExam = async (req, res, next) => {
 export const getAdminExams = async (req, res, next) => {
   try {
     const { status, category } = req.query;
-    const query = { organizationId: req.user.organizationId };
+    const query = {};
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
 
     if (status) query.status = status;
     if (category) query.category = category;
@@ -56,7 +59,12 @@ export const getAdminExams = async (req, res, next) => {
 export const getExamById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const exam = await Exam.findOne({ _id: id, organizationId: req.user.organizationId }).populate('questions.question');
+    const query = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
+
+    const exam = await Exam.findOne(query).populate('questions.question');
 
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
@@ -80,7 +88,12 @@ export const updateExam = async (req, res, next) => {
       updateData.totalMarks = updateData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
     }
 
-    const exam = await Exam.findOneAndUpdate({ _id: id, organizationId: req.user.organizationId }, { $set: updateData }, { new: true, runValidators: true });
+    const query = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
+
+    const exam = await Exam.findOneAndUpdate(query, { $set: updateData }, { new: true, runValidators: true });
 
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
@@ -97,7 +110,12 @@ export const updateExam = async (req, res, next) => {
 export const deleteExam = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const exam = await Exam.findOneAndDelete({ _id: id, organizationId: req.user.organizationId });
+    const query = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
+
+    const exam = await Exam.findOneAndDelete(query);
 
     if (!exam) {
       throw new ApiError(404, 'Exam not found');
@@ -117,7 +135,12 @@ export const deleteExam = async (req, res, next) => {
 export const duplicateExam = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const original = await Exam.findOne({ _id: id, organizationId: req.user.organizationId });
+    const query = { _id: id };
+    if (req.user.role !== ROLES.SUPER_ADMIN) {
+      query.organizationId = req.user.organizationId;
+    }
+
+    const original = await Exam.findOne(query);
 
     if (!original) {
       throw new ApiError(404, 'Original exam not found');
