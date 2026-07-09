@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Filter, Edit2, Trash2, HelpCircle, Layers, CheckCircle2, ChevronRight, X, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Filter, Edit2, Trash2, HelpCircle, Layers, CheckCircle2, ChevronRight, X, AlertTriangle, Upload, FileText } from 'lucide-react';
 import api from '../../services/api';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -8,6 +8,117 @@ import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import toast from 'react-hot-toast';
+
+const parseBulkQuestions = (rawText) => {
+  const text = rawText.replace(/\r\n/g, '\n');
+  const blocks = text.split(/\n\s*\n+/);
+  const parsed = [];
+
+  blocks.forEach((block) => {
+    const trimmed = block.trim();
+    if (!trimmed) return;
+
+    const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+
+    let questionText = lines[0];
+    const markerMatch = questionText.match(/^(?:Q|Question\s*)?\d+[\.\:\)\-]\s*/i);
+    if (markerMatch) {
+      questionText = questionText.substring(markerMatch[0].length);
+    }
+
+    let isCoding = false;
+    let type = 'subjective';
+    let optionsList = [];
+    let correctAnswer = '';
+    let codingDetails = { language: 'javascript', starterCode: '', solutionCode: '', testCases: [] };
+    let marks = 5;
+
+    if (trimmed.includes('```') || trimmed.toLowerCase().includes('function ') || trimmed.toLowerCase().includes('def ') || trimmed.toLowerCase().includes('return ')) {
+      isCoding = true;
+      type = 'coding';
+    }
+
+    if (isCoding) {
+      const codeFenceMatches = trimmed.match(/```[a-z]*([\s\S]*?)```/i);
+      let extractedCode = '';
+      if (codeFenceMatches && codeFenceMatches[1]) {
+        extractedCode = codeFenceMatches[1].trim();
+      } else {
+        extractedCode = lines.slice(1).join('\n');
+      }
+
+      codingDetails = {
+        language: trimmed.toLowerCase().includes('def ') ? 'python' : 'javascript',
+        starterCode: extractedCode,
+        solutionCode: '// Run checks\n',
+        testCases: [{ input: '()', expectedOutput: 'true', marks: 5, isHidden: false }]
+      };
+    } else {
+      const optionPattern = /^(?:[A-D]|[a-d]|\d+)[\.\)\-\s]\s*(.*)/;
+      const trueFalsePattern = /^(true|false)$/i;
+
+      const remainingLines = lines.slice(1);
+      let optionsFound = [];
+
+      remainingLines.forEach((line) => {
+        const optionMatch = line.match(optionPattern);
+        if (optionMatch) {
+          let optText = optionMatch[1].trim();
+          let isCorrect = false;
+          if (optText.endsWith('*')) {
+            isCorrect = true;
+            optText = optText.slice(0, -1).trim();
+          } else if (line.toLowerCase().includes('(correct)') || optText.toLowerCase().includes('(correct)')) {
+            isCorrect = true;
+            optText = optText.replace(/\(correct\)/i, '').trim();
+          }
+          optionsFound.push({ text: optText, isCorrect });
+        } else if (trueFalsePattern.test(line)) {
+          optionsFound.push({ text: line, isCorrect: false });
+        } else {
+          if (optionsFound.length === 0) {
+            questionText += ' ' + line;
+          }
+        }
+      });
+
+      if (optionsFound.length === 2 && 
+          ((optionsFound[0].text.toLowerCase() === 'true' && optionsFound[1].text.toLowerCase() === 'false') ||
+           (optionsFound[0].text.toLowerCase() === 'false' && optionsFound[1].text.toLowerCase() === 'true'))) {
+        type = 'true_false';
+        const correctOpt = optionsFound.find(o => o.isCorrect);
+        correctAnswer = correctOpt ? (correctOpt.text.toLowerCase() === 'true') : true;
+      } else if (optionsFound.length > 0) {
+        type = 'mcq_single';
+        optionsList = optionsFound.map((opt, i) => ({
+          text: opt.text,
+          isCorrect: opt.isCorrect,
+          order: i
+        }));
+        if (!optionsList.some(o => o.isCorrect)) {
+          optionsList[0].isCorrect = true;
+        }
+      } else {
+        type = 'subjective';
+      }
+    }
+
+    parsed.push({
+      text: questionText.trim(),
+      type,
+      difficulty: 'medium',
+      category: 'General',
+      defaultMarks: marks,
+      options: optionsList,
+      correctAnswer: type === 'true_false' ? correctAnswer : undefined,
+      codingDetails: type === 'coding' ? codingDetails : undefined,
+      explanation: ''
+    });
+  });
+
+  return parsed;
+};
 
 const Questions = () => {
   const [questions, setQuestions] = useState([]);
@@ -21,6 +132,12 @@ const Questions = () => {
   // Modal forms states
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  // Bulk import states
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [parsedQuestions, setParsedQuestions] = useState([]);
+  const [importing, setImporting] = useState(false);
 
   // Form Fields
   const [qType, setQType] = useState('mcq_single'); // mcq_single, true_false, subjective, coding
@@ -201,6 +318,13 @@ const Questions = () => {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => {
+            setImportText('');
+            setParsedQuestions([]);
+            setImportOpen(true);
+          }} className="gap-1">
+            📥 Bulk Import
+          </Button>
           {['mcq_single', 'true_false', 'subjective', 'coding'].map((type) => (
             <Button key={type} size="sm" onClick={() => handleOpenAdd(type)}>
               + Add {type.replace('_', ' ')}
@@ -438,6 +562,204 @@ const Questions = () => {
             Save Question Configuration
           </Button>
         </form>
+      </Modal>
+
+      {/* Bulk Import Questions Modal */}
+      <Modal isOpen={importOpen} onClose={() => setImportOpen(false)} title="📥 Bulk Import Questions (Text File Analyzer)">
+        <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+          <div className="space-y-1">
+            <h3 className="text-xs font-bold text-slate-800 dark:text-white">Import multiple questions using raw text</h3>
+            <p className="text-[10px] text-slate-400 dark:text-darkMuted leading-relaxed">
+              Paste your questions below or load a text file. Separate questions with a **blank line**. 
+              Use markers like `A) Option text` or `A. Option text` for MCQs, and suffix the correct option with `*` or `(correct)`. Code blocks in triple backticks (\`\`\`) are parsed as coding questions.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <textarea
+              rows={8}
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder={`Example format:
+
+Q1. What is the value of 2 + 2?
+A) 3
+B) 4*
+C) 5
+D) 6
+
+Q2. Python is a compiled language.
+True
+False*
+
+Q3. Write a JavaScript function to sum.
+\`\`\`javascript
+function sum(a, b) {
+  return a + b;
+}
+\`\`\``}
+              className="w-full font-mono bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white rounded-xl px-4 py-3 text-xs focus:outline-none"
+            />
+            <div className="flex gap-4 items-center">
+              <input
+                type="file"
+                accept=".txt,.md,.csv"
+                id="bulkFileLoader"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      setImportText(event.target.result);
+                    };
+                    reader.readAsText(file);
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('bulkFileLoader').click()}
+                className="text-xs gap-1"
+              >
+                <Upload size={13} /> Load Text File
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!importText.trim()) {
+                    return toast.error('Please enter or load some text to parse!');
+                  }
+                  const parsed = parseBulkQuestions(importText);
+                  if (parsed.length === 0) {
+                    return toast.error('No questions identified in the text. Make sure questions are separated by blank lines.');
+                  }
+                  setParsedQuestions(parsed);
+                  toast.success(`Successfully analyzed ${parsed.length} questions! Review them below.`);
+                }}
+                className="text-xs gap-1"
+              >
+                <Search size={13} /> Analyze & Parse
+              </Button>
+            </div>
+          </div>
+
+          {/* Parsed questions preview list */}
+          {parsedQuestions.length > 0 && (
+            <div className="space-y-3 pt-4 border-t border-slate-250 dark:border-slate-800">
+              <h4 className="text-[10px] font-bold text-slate-405 uppercase tracking-wider">
+                Parsed Questions Preview ({parsedQuestions.length})
+              </h4>
+              
+              <div className="max-h-[300px] overflow-y-auto space-y-4 pr-1 divide-y divide-slate-200 dark:divide-slate-800">
+                {parsedQuestions.map((q, idx) => (
+                  <div key={idx} className="pt-4 first:pt-0 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 space-y-1">
+                        <span className="text-[9px] font-bold text-slate-500">Question #{idx + 1} Text</span>
+                        <input
+                          type="text"
+                          value={q.text}
+                          onChange={(e) => {
+                            const updated = [...parsedQuestions];
+                            updated[idx].text = e.target.value;
+                            setParsedQuestions(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 dark:bg-darkSurface dark:border-slate-800 rounded-lg px-2.5 py-1 text-xs focus:outline-none"
+                        />
+                      </div>
+                      <div className="w-32">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase">Type</label>
+                        <select
+                          value={q.type}
+                          onChange={(e) => {
+                            const updated = [...parsedQuestions];
+                            updated[idx].type = e.target.value;
+                            setParsedQuestions(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 dark:bg-darkSurface dark:border-slate-800 rounded-lg px-2 py-1 text-xs focus:outline-none"
+                        >
+                          <option value="mcq_single">Single MCQ</option>
+                          <option value="true_false">True / False</option>
+                          <option value="subjective">Subjective</option>
+                          <option value="coding">Coding</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase">Difficulty</label>
+                        <select
+                          value={q.difficulty}
+                          onChange={(e) => {
+                            const updated = [...parsedQuestions];
+                            updated[idx].difficulty = e.target.value;
+                            setParsedQuestions(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 dark:bg-darkSurface dark:border-slate-800 rounded-lg px-2 py-1 text-xs focus:outline-none"
+                        >
+                          <option value="easy">Easy</option>
+                          <option value="medium">Medium</option>
+                          <option value="hard">Hard</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase">Category</label>
+                        <input
+                          type="text"
+                          value={q.category}
+                          onChange={(e) => {
+                            const updated = [...parsedQuestions];
+                            updated[idx].category = e.target.value;
+                            setParsedQuestions(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 dark:bg-darkSurface dark:border-slate-800 rounded-lg px-2 py-1 text-xs focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase">Default Marks</label>
+                        <input
+                          type="number"
+                          value={q.defaultMarks}
+                          onChange={(e) => {
+                            const updated = [...parsedQuestions];
+                            updated[idx].defaultMarks = parseInt(e.target.value) || 5;
+                            setParsedQuestions(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 dark:bg-darkSurface dark:border-slate-800 rounded-lg px-2 py-1 text-xs focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                loading={importing}
+                onClick={async () => {
+                  setImporting(true);
+                  try {
+                    await api.post('/admin/questions/bulk-import', { questions: parsedQuestions });
+                    toast.success(`Successfully imported ${parsedQuestions.length} questions!`);
+                    setImportOpen(false);
+                    setParsedQuestions([]);
+                    setImportText('');
+                    fetchQuestions();
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Failed to import parsed questions.');
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+                className="w-full mt-4"
+              >
+                ✅ Confirm & Import {parsedQuestions.length} Questions
+              </Button>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );
