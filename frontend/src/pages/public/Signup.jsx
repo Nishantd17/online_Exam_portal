@@ -114,7 +114,7 @@ const Signup = () => {
     const initializeGoogleSignUp = () => {
       if (window.google && step === 1) {
         window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1061611532483-0d9dlatgmc35708mc3tei9br64ve047i.apps.googleusercontent.com',
           callback: handleGoogleCredentialResponse
         });
         const btnElement = document.getElementById('googleSignUpBtn');

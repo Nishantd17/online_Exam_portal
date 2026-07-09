@@ -97,7 +97,7 @@ const Login = () => {
     const initializeGoogleSignIn = () => {
       if (window.google) {
         window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1061611532483-0d9dlatgmc35708mc3tei9br64ve047i.apps.googleusercontent.com',
           callback: handleGoogleCredentialResponse
         });
         window.google.accounts.id.renderButton(
