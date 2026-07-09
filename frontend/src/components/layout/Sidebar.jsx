@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -6,11 +6,30 @@ import {
   User, LogOut, ChevronLeft, ChevronRight, GraduationCap, ClipboardList, Zap
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role === 'admin' || user?.role === 'super_admin') {
+      const getPendingCount = async () => {
+        try {
+          const response = await api.get('/trial-requests');
+          const pending = response.data.data.filter(r => r.status === 'Pending').length;
+          setPendingCount(pending);
+        } catch (e) {
+          // ignore
+        }
+      };
+      getPendingCount();
+      const interval = setInterval(getPendingCount, 20000); // Poll every 20 seconds
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -23,6 +42,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     { label: 'Exams',           path: '/admin/exams',            icon: BookOpen,         color: '#06b6d4' },
     { label: 'Questions',       path: '/admin/questions',        icon: HelpCircle,       color: '#3b82f6' },
     { label: 'Pending Reviews', path: '/admin/pending-reviews',  icon: ClipboardList,    color: '#f59e0b' },
+    { label: 'Trial Inquiries', path: '/admin/trial-inquiries',  icon: Zap,              color: '#f59e0b', badgeKey: 'trial' },
     { label: 'Results',         path: '/admin/results',          icon: FileText,         color: '#10b981' },
     { label: 'Settings',        path: '/admin/settings',         icon: Settings,         color: '#94a3b8' },
   ];
@@ -136,27 +156,39 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                     />
                   )}
 
-                  {/* Icon */}
+                   {/* Icon */}
                   <motion.span
                     whileHover={{ scale: 1.1 }}
                     className="flex-shrink-0 relative z-10"
                     style={{ color: isActive ? item.color : 'rgba(148,163,184,0.7)' }}
                   >
                     <Icon size={18} />
+                    {collapsed && item.badgeKey === 'trial' && pendingCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-brand-red animate-pulse" />
+                    )}
                   </motion.span>
 
                   {/* Label */}
                   <AnimatePresence>
                     {!collapsed && (
-                      <motion.span
+                      <motion.div
                         initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -8 }}
-                        className="whitespace-nowrap relative z-10 text-xs font-semibold"
-                        style={{ color: isActive ? item.color : 'rgba(148,163,184,0.8)' }}
+                        className="flex-1 flex items-center justify-between relative z-10 overflow-hidden"
                       >
-                        {item.label}
-                      </motion.span>
+                        <span
+                          className="whitespace-nowrap text-xs font-semibold"
+                          style={{ color: isActive ? item.color : 'rgba(148,163,184,0.8)' }}
+                        >
+                          {item.label}
+                        </span>
+                        {item.badgeKey === 'trial' && pendingCount > 0 && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-brand-red text-white animate-pulse">
+                            {pendingCount}
+                          </span>
+                        )}
+                      </motion.div>
                     )}
                   </AnimatePresence>
 

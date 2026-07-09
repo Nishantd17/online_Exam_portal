@@ -19,6 +19,7 @@ import Results from './pages/admin/Results';
 import Settings from './pages/admin/Settings';
 import PendingResults from './pages/admin/PendingResults';
 import ReviewDetail from './pages/admin/ReviewDetail';
+import TrialRequests from './pages/admin/TrialRequests';
 import DashboardLayout from './components/layout/DashboardLayout';
 import { ExamProvider } from './context/ExamContext';
 import { useAuth } from './context/AuthContext';
@@ -188,6 +189,14 @@ const App = () => {
                   element={
                     <DashboardLayout requiredRole="admin">
                       <Settings />
+                    </DashboardLayout>
+                  }
+                />
+                <Route
+                  path="trial-inquiries"
+                  element={
+                    <DashboardLayout requiredRole="admin">
+                      <TrialRequests />
                     </DashboardLayout>
                   }
                 />

@@ -5,6 +5,7 @@ import questionRoutes from './question.routes.js';
 import examRoutes from './exam.routes.js';
 import resultRoutes from './result.routes.js';
 import userRoutes from './user.routes.js';
+import trialRoutes from './trial.routes.js';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/admin/students', studentRoutes);
 router.use('/admin/questions', questionRoutes);
 router.use('/exams', examRoutes);
 router.use('/results', resultRoutes);
+router.use('/trial-requests', trialRoutes);
 
 export default router;

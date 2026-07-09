@@ -7,6 +7,7 @@ import Card from '../../components/ui/Card';
 import Accordion from '../../components/ui/Accordion';
 import BlobBackground from '../../components/effects/BlobBackground';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const ParticleBackground = lazy(() => import('../../components/effects/ParticleBackground'));
 
@@ -36,17 +37,21 @@ const Landing = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
     setSending(true);
-    setTimeout(() => {
-      toast.success('Your message has been sent successfully! Our sales team will get back to you shortly.', {
-        duration: 4000,
+    try {
+      await api.post('/trial-requests', formData);
+      toast.success('Your trial request message has been sent successfully! Admins have been notified.', {
+        duration: 4500,
         style: { borderRadius: '12px', background: '#1E293B', color: '#FFF' }
       });
       setFormData({ fullName: '', email: '', subject: 'General', message: '' });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send message. Please try again.');
+    } finally {
       setSending(false);
-    }, 1500);
+    }
   };
 
   const faqData = [
