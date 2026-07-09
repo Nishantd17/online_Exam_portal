@@ -5,11 +5,11 @@ import { loadSlim } from '@tsparticles/slim';
 const ParticleBackground = ({ className = '' }) => {
   const id = useId();
   const [isMobile, setIsMobile] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // Only check screen size on mount to determine mobile mode
-    // Ignoring dynamic resize listeners prevents keyboard popups from altering the state
     setIsMobile(window.innerWidth < 768);
+    setInitialized(true);
   }, []);
 
   const particlesInit = useCallback(async (engine) => {
@@ -21,7 +21,7 @@ const ParticleBackground = ({ className = '' }) => {
       fpsLimit: 60,
       background: { color: { value: 'transparent' } },
       particles: {
-        number: { value: isMobile ? 25 : 55, density: { enable: true } },
+        number: { value: 55, density: { enable: true } },
         color: { value: ['#00f0ff', '#8b5cf6', '#06b6d4', '#ec4899'] },
         shape: { type: 'circle' },
         opacity: {
@@ -34,7 +34,7 @@ const ParticleBackground = ({ className = '' }) => {
         },
         links: {
           enable: true,
-          distance: isMobile ? 100 : 140,
+          distance: 140,
           color: '#00f0ff',
           opacity: 0.18,
           width: 1,
@@ -52,9 +52,9 @@ const ParticleBackground = ({ className = '' }) => {
       interactivity: {
         detect_on: 'canvas',
         events: {
-          onHover: { enable: !isMobile, mode: 'grab' },
+          onHover: { enable: true, mode: 'grab' },
           onClick: { enable: true, mode: 'push' },
-          resize: !isMobile // Ignore window resize on mobile to prevent virtual keyboard crashes
+          resize: true
         },
         modes: {
           grab: { distance: 160, links: { opacity: 0.5 } },
@@ -62,9 +62,52 @@ const ParticleBackground = ({ className = '' }) => {
           repulse: { distance: 100 }
         }
       },
-      detectRetina: !isMobile // Turn off retina scaling on mobile to save GPU memory
+      detectRetina: true
     };
-  }, [isMobile]);
+  }, []);
+
+  if (!initialized) return null;
+
+  if (isMobile) {
+    return (
+      <div className={`absolute inset-0 z-0 overflow-hidden pointer-events-none ${className}`}>
+        <style>{`
+          @keyframes floatMobile {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.2; }
+            33% { transform: translate(30px, -50px) scale(1.1); opacity: 0.6; }
+            66% { transform: translate(-20px, -80px) scale(0.9); opacity: 0.4; }
+            100% { transform: translate(0, 0) scale(1); opacity: 0.2; }
+          }
+        `}</style>
+        {[...Array(15)].map((_, i) => {
+          const size = Math.random() * 3 + 2; // 2px to 5px
+          const delay = Math.random() * -20;
+          const duration = Math.random() * 20 + 20; // 20s to 40s
+          const left = Math.random() * 100;
+          const top = Math.random() * 100;
+          const colors = ['#00f0ff', '#8b5cf6', '#06b6d4', '#ec4899'];
+          const color = colors[i % colors.length];
+
+          return (
+            <div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                backgroundColor: color,
+                boxShadow: `0 0 8px ${color}, 0 0 16px ${color}`,
+                left: `${left}%`,
+                top: `${top}%`,
+                animation: `floatMobile ${duration}s ease-in-out infinite`,
+                animationDelay: `${delay}s`,
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <ParticlesProvider init={particlesInit}>
