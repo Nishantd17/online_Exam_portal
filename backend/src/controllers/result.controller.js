@@ -445,6 +445,52 @@ export const getDashboardStats = async (req, res, next) => {
       else distribution.below++;
     });
 
+    // Calculate weekly completions data over the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const weeklyQuery = {
+      ...resultQuery,
+      createdAt: { $gte: sevenDaysAgo }
+    };
+    const weeklyResults = await Result.find(weeklyQuery);
+
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const completionsMap = {};
+
+    // Initialize map for the last 7 days leading up to today
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayName = daysOfWeek[d.getDay()];
+      const dateString = d.toDateString();
+      completionsMap[dateString] = {
+        name: dayName,
+        Attempted: 0,
+        Completed: 0,
+        sortDate: new Date(d.setHours(0, 0, 0, 0))
+      };
+    }
+
+    weeklyResults.forEach((res) => {
+      const dateString = new Date(res.createdAt).toDateString();
+      if (completionsMap[dateString]) {
+        completionsMap[dateString].Attempted++;
+        if (res.status !== 'Rejected') {
+          completionsMap[dateString].Completed++;
+        }
+      }
+    });
+
+    const weeklyCompletions = Object.values(completionsMap)
+      .sort((a, b) => a.sortDate - b.sortDate)
+      .map(item => ({
+        name: item.name,
+        Attempted: item.Attempted,
+        Completed: item.Completed
+      }));
+
     // Recent activities feed
     const studentRecentQuery = { role: ROLES.STUDENT };
     const examRecentQuery = {};
@@ -503,6 +549,7 @@ export const getDashboardStats = async (req, res, next) => {
             { name: 'Average (60-74%)', value: distribution.average, color: '#F59E0B' },
             { name: 'Below (Below 60%)', value: distribution.below, color: '#EF4444' }
           ],
+          weeklyCompletions,
           activities: activities.slice(0, 8)
         },
         'Dashboard analytics aggregated'

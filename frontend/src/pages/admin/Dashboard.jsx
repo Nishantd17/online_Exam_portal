@@ -133,15 +133,17 @@ const AdminDashboard = () => {
     fetchAdminStats();
   }, []);
 
-  const completionsData = [
-    { name: 'Mon', Attempted: 120, Completed: 110 },
-    { name: 'Tue', Attempted: 240, Completed: 210 },
-    { name: 'Wed', Attempted: 310, Completed: 290 },
-    { name: 'Thu', Attempted: 180, Completed: 175 },
-    { name: 'Fri', Attempted: 420, Completed: 380 },
-    { name: 'Sat', Attempted: 90,  Completed: 85 },
-    { name: 'Sun', Attempted: 50,  Completed: 48 }
-  ];
+  const completionsData = stats?.weeklyCompletions && stats.weeklyCompletions.length > 0
+    ? stats.weeklyCompletions
+    : [
+        { name: 'Mon', Attempted: 0, Completed: 0 },
+        { name: 'Tue', Attempted: 0, Completed: 0 },
+        { name: 'Wed', Attempted: 0, Completed: 0 },
+        { name: 'Thu', Attempted: 0, Completed: 0 },
+        { name: 'Fri', Attempted: 0, Completed: 0 },
+        { name: 'Sat', Attempted: 0, Completed: 0 },
+        { name: 'Sun', Attempted: 0, Completed: 0 }
+      ];
 
   if (loading || !stats) {
     return (
