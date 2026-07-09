@@ -32,6 +32,41 @@ export const sendEmail = async ({ to, subject, html, text }) => {
     }
   }
 
+  // 2. Try Brevo API if configured
+  if (process.env.BREVO_API_KEY) {
+    try {
+      console.log(`Attempting to send email via Brevo API to: ${to}`);
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: process.env.SMTP_SENDER_NAME || 'ExamPortal',
+            email: process.env.EMAIL_FROM || 'portalexam1719@gmail.com'
+          },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+          textContent: text
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        console.log(`Email successfully sent via Brevo API. Message ID: ${data.messageId}`);
+        return true;
+      } else {
+        console.error('Brevo API returned an error:', data);
+      }
+    } catch (brevoError) {
+      console.error('Error sending email via Brevo API:', brevoError.message);
+    }
+  }
+
   // 2. Try SMTP (Nodemailer) if configured
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     try {
