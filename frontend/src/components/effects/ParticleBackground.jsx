@@ -26,7 +26,7 @@ const ParticleBackground = ({ className = '' }) => {
       fpsLimit: 60,
       background: { color: { value: 'transparent' } },
       particles: {
-        number: { value: isMobile ? 25 : 55, density: { enable: true } },
+        number: { value: isMobile ? 22 : 55, density: { enable: true } },
         color: { value: ['#00f0ff', '#8b5cf6', '#06b6d4', '#ec4899'] },
         shape: { type: 'circle' },
         opacity: {
@@ -34,14 +34,14 @@ const ParticleBackground = ({ className = '' }) => {
           animation: { enable: true, speed: 0.8, sync: false }
         },
         size: {
-          value: { min: 1.5, max: 3.5 },
+          value: isMobile ? { min: 1.2, max: 2.8 } : { min: 1.5, max: 3.5 },
           animation: { enable: true, speed: 2, sync: false }
         },
         links: {
           enable: true,
-          distance: isMobile ? 100 : 140,
+          distance: isMobile ? 110 : 140,
           color: '#00f0ff',
-          opacity: 0.18,
+          opacity: 0.16,
           width: 1,
           triangles: { enable: false }
         },
@@ -59,7 +59,7 @@ const ParticleBackground = ({ className = '' }) => {
         events: {
           onHover: { enable: !isMobile, mode: 'grab' },
           onClick: { enable: true, mode: 'push' },
-          resize: !isMobile // Ignore canvas resize events on mobile to prevent virtual keyboard crashes
+          resize: !isMobile // Disable canvas resizing on mobile viewports to prevent virtual keyboard crashes
         },
         modes: {
           grab: { distance: 160, links: { opacity: 0.5 } },
@@ -67,7 +67,7 @@ const ParticleBackground = ({ className = '' }) => {
           repulse: { distance: 100 }
         }
       },
-      detectRetina: !isMobile // Turn off retina scaling on mobile to save GPU memory
+      detectRetina: !isMobile // Disable high-DPI retina rendering on mobile to save GPU memory
     };
   }, [isMobile]);
 
