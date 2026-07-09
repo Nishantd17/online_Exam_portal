@@ -7,6 +7,7 @@ const ParticleBackground = ({ className = '' }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [height, setHeight] = useState('100%');
   const [initialized, setInitialized] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
 
   useEffect(() => {
     const mobile = window.innerWidth < 768;
@@ -15,6 +16,23 @@ const ParticleBackground = ({ className = '' }) => {
       setHeight(`${window.innerHeight}px`);
     }
     setInitialized(true);
+
+    const handleFocus = (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        setInputFocused(true);
+      }
+    };
+    const handleBlur = () => {
+      setInputFocused(false);
+    };
+
+    window.addEventListener('focus', handleFocus, true);
+    window.addEventListener('blur', handleBlur, true);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus, true);
+      window.removeEventListener('blur', handleBlur, true);
+    };
   }, []);
 
   const particlesInit = useCallback(async (engine) => {
@@ -59,7 +77,7 @@ const ParticleBackground = ({ className = '' }) => {
         events: {
           onHover: { enable: !isMobile, mode: 'grab' },
           onClick: { enable: true, mode: 'push' },
-          resize: !isMobile // Disable canvas resizing on mobile viewports to prevent virtual keyboard crashes
+          resize: !isMobile // Ignore canvas resize events on mobile to prevent virtual keyboard crashes
         },
         modes: {
           grab: { distance: 160, links: { opacity: 0.5 } },
@@ -67,11 +85,16 @@ const ParticleBackground = ({ className = '' }) => {
           repulse: { distance: 100 }
         }
       },
-      detectRetina: !isMobile // Disable high-DPI retina rendering on mobile to save GPU memory
+      detectRetina: !isMobile // Turn off retina scaling on mobile to save GPU memory
     };
   }, [isMobile]);
 
   if (!initialized) return null;
+
+  if (isMobile && inputFocused) {
+    // Return empty placeholder when typing to avoid virtual keyboard context crashes
+    return <div className="absolute inset-0 z-0 bg-transparent" />;
+  }
 
   return (
     <div 
