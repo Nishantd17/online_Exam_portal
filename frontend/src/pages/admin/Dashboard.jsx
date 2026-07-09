@@ -106,6 +106,16 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [exams, setExams] = useState([]);
+  const [showGlobe, setShowGlobe] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setShowGlobe(window.innerWidth >= 1024);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchAdminStats = async () => {
@@ -267,7 +277,7 @@ const AdminDashboard = () => {
                     <div className="animate-spin-slow h-12 w-12 rounded-full" style={{ border: '2px solid rgba(0,240,255,0.2)', borderTop: '2px solid #00f0ff' }} />
                   </div>
                 }>
-                  <Globe3D />
+                  {showGlobe ? <Globe3D /> : <GlobeFallback />}
                 </Suspense>
               </ErrorBoundary>
             </div>

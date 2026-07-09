@@ -25,7 +25,8 @@ if (process.env.FRONTEND_URL) {
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const isVercelSubdomain = origin && /\.vercel\.app$/.test(origin);
+    if (!origin || allowedOrigins.includes(origin) || isVercelSubdomain) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
